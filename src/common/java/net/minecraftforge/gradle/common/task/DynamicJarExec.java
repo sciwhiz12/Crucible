@@ -40,14 +40,14 @@ public class DynamicJarExec extends JarExec {
 	private Map<String, File> data;
 
     @Override
-    protected List<String> filterArgs() {
+    protected List<String> filterArgs(List<String> args) {
         Map<String, String> replace = new HashMap<>();
         replace.put("{input}", getInput().getAbsolutePath());
         replace.put("{output}", getOutput().getAbsolutePath());
         if (this.data != null)
         	this.data.forEach((key,value) -> replace.put('{' + key + '}', value.getAbsolutePath()));
 
-        return Arrays.stream(getArgs()).map(arg -> replace.getOrDefault(arg, arg)).collect(Collectors.toList());
+        return args.stream().map(arg -> replace.getOrDefault(arg, arg)).collect(Collectors.toList());
     }
 
 	@InputFiles

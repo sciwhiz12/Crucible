@@ -71,7 +71,7 @@ public class JarExec extends DefaultTask {
             PrintWriter printer = new PrintWriter(log, true);
             getProject().javaexec(java -> {
                 // Execute command
-                java.setArgs(filterArgs());
+                java.setArgs(filterArgs(Arrays.asList(args)));
                 printer.println("Args: " + java.getArgs().stream().map(m -> '"' + m +'"').collect(Collectors.joining(", ")));
                 if (getClasspath() == null)
                     java.setClasspath(getProject().files(jar));
@@ -105,8 +105,8 @@ public class JarExec extends DefaultTask {
             workDir.delete();
     }
 
-    protected List<String> filterArgs() {
-        return Arrays.asList(getArgs());
+    protected List<String> filterArgs(List<String> args) {
+        return args;
     }
 
     protected void postProcess(File log) {

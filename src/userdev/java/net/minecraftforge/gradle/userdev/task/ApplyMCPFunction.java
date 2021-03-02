@@ -101,8 +101,8 @@ public class ApplyMCPFunction extends JarExec {
     }
 
     @Override
-    protected List<String> filterArgs() {
-        return Arrays.stream(getArgs()).map(arg -> replacements.getOrDefault(arg, arg)).collect(Collectors.toList());
+    protected List<String> filterArgs(List<String> args) {
+        return args.stream().map(arg -> replacements.getOrDefault(arg, arg)).collect(Collectors.toList());
     }
 
     @InputFile

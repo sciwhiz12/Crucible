@@ -53,14 +53,14 @@ public class RenameJarInPlace extends JarExec {
     }
 
     @Override
-    protected List<String> filterArgs() {
+    protected List<String> filterArgs(List<String> args) {
 
         Map<String, String> replace = new HashMap<>();
         replace.put("{input}", getInput().getAbsolutePath());
         replace.put("{output}", temp.getAbsolutePath());
 
         List<String> _args = new ArrayList<>();
-        for (String arg : getArgs()) {
+        for (String arg : args) {
             if ("{mappings}".equals(arg)) {
                 String prefix = _args.get(_args.size() - 1);
                 _args.add(getMappings().getAbsolutePath());

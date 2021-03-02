@@ -55,7 +55,7 @@ public class ApplyRangeMap extends JarExec {
     }
 
     @Override
-    protected List<String> filterArgs() {
+    protected List<String> filterArgs(List<String> args) {
         Map<String, String> replace = new HashMap<>();
         replace.put("{range}", getRangeMap().getAbsolutePath());
         replace.put("{output}", getOutput().getAbsolutePath());
@@ -63,7 +63,7 @@ public class ApplyRangeMap extends JarExec {
         replace.put("{keepImports}", getKeepImports() ? "true" : "false");
 
         List<String> _args = new ArrayList<>();
-        for (String arg : getArgs()) {
+        for (String arg : args) {
             if ("{input}".equals(arg))
                 expand(_args, getSources());
             else if ("{srg}".equals(arg))

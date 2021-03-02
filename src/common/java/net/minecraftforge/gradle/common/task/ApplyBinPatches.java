@@ -44,13 +44,13 @@ public class ApplyBinPatches extends JarExec {
     }
 
     @Override
-    protected List<String> filterArgs() {
+    protected List<String> filterArgs(List<String> args) {
         Map<String, String> replace = new HashMap<>();
         replace.put("{clean}", getClean().getAbsolutePath());
         replace.put("{output}", getOutput().getAbsolutePath());
         replace.put("{patch}", getPatch().getAbsolutePath());
 
-        return Arrays.stream(getArgs()).map(arg -> replace.getOrDefault(arg, arg)).collect(Collectors.toList());
+        return args.stream().map(arg -> replace.getOrDefault(arg, arg)).collect(Collectors.toList());
     }
 
     @InputFile

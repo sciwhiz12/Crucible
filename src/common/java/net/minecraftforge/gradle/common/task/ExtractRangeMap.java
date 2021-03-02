@@ -48,14 +48,14 @@ public class ExtractRangeMap extends JarExec {
     }
 
     @Override
-    protected List<String> filterArgs() {
+    protected List<String> filterArgs(List<String> args) {
         Map<String, String> replace = new HashMap<>();
         replace.put("{compat}", getSourceCompatibility());
         replace.put("{output}", getOutput().getAbsolutePath());
         replace.put("{batched}", getBatch() ? "true" : "false");
 
         List<String> _args = new ArrayList<>();
-        for (String arg : getArgs()) {
+        for (String arg : args) {
             if ("{library}".equals(arg)) {
                 String prefix = _args.get(_args.size() - 1);
                 _args.remove(_args.size() - 1);

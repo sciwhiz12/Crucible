@@ -46,14 +46,14 @@ public class RenameJarSrg2Mcp extends JarExec {
     }
 
     @Override
-    protected List<String> filterArgs() {
+    protected List<String> filterArgs(List<String> args) {
         Map<String, String> replace = new HashMap<>();
         replace.put("{input}", getInput().getAbsolutePath());
         replace.put("{output}", getOutput().getAbsolutePath());
         replace.put("{mappings}", getMappings().getAbsolutePath());
         replace.put("{strip}", getSignatureRemoval()? "--strip-signatures" : "");
 
-        return Arrays.stream(getArgs()).map(arg -> replace.getOrDefault(arg, arg)).filter(it -> !it.isEmpty()).collect(Collectors.toList());
+        return args.stream().map(arg -> replace.getOrDefault(arg, arg)).filter(it -> !it.isEmpty()).collect(Collectors.toList());
     }
 
     public boolean getSignatureRemoval() {

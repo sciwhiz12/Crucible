@@ -46,12 +46,12 @@ public class AccessTransformJar extends JarExec {
     }
 
     @Override
-    protected List<String> filterArgs() {
+    protected List<String> filterArgs(List<String> args) {
         Map<String, String> replace = new HashMap<>();
         replace.put("{input}", getInput().getAbsolutePath());
         replace.put("{output}", getOutput().getAbsolutePath());
 
-        List<String> ret = Arrays.stream(getArgs()).map(arg -> replace.getOrDefault(arg, arg)).collect(Collectors.toList());
+        List<String> ret = args.stream().map(arg -> replace.getOrDefault(arg, arg)).collect(Collectors.toList());
         ats.forEach(f -> {
             ret.add("--atFile");
             ret.add(f.getAbsolutePath());

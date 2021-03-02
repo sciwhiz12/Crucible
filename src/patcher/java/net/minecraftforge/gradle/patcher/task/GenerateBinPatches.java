@@ -53,7 +53,7 @@ public class GenerateBinPatches extends JarExec {
     }
 
     @Override
-    protected List<String> filterArgs() {
+    protected List<String> filterArgs(List<String> args) {
         Map<String, String> replace = new HashMap<>();
         replace.put("{clean}", getCleanJar().getAbsolutePath());
         replace.put("{dirty}", getDirtyJar().getAbsolutePath());
@@ -62,7 +62,7 @@ public class GenerateBinPatches extends JarExec {
         this.extras.forEach((k,v) -> replace.put('{' + k + '}', v.getAbsolutePath()));
 
         List<String> _args = new ArrayList<>();
-        for (String arg : getArgs()) {
+        for (String arg : args) {
             if ("{patches}".equals(arg)) {
                 String prefix = _args.get(_args.size() - 1);
                 _args.remove(_args.size() - 1);
