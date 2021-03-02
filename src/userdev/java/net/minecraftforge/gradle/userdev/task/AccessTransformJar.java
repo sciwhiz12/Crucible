@@ -18,31 +18,31 @@
  * USA
  */
 
-package net.minecraftforge.gradle.userdev.tasks;
+package net.minecraftforge.gradle.userdev.task;
 
 import org.gradle.api.tasks.InputFile;
+import org.gradle.api.tasks.InputFiles;
 import org.gradle.api.tasks.OutputFile;
 
 import net.minecraftforge.gradle.common.task.JarExec;
 import net.minecraftforge.gradle.common.util.Utils;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-public class RenameJarSrg2Mcp extends JarExec {
-    private Supplier<File> input;
+public class AccessTransformJar extends JarExec {
+    private File input;
     private File output;
-    private Supplier<File> mappings;
-    private boolean signatureRemoval;
+    private List<File> ats;
 
-    public RenameJarSrg2Mcp() {
-        tool = Utils.INSTALLERTOOLS;
-        args = new String[] { "--task", "SRG_TO_MCP", "--input", "{input}", "--output", "{output}", "--mcp", "{mappings}", "{strip}"};
+    public AccessTransformJar() {
+        tool = Utils.ACCESSTRANSFORMER; // AT spec *should* be standardized, it has been for years. So we *shouldn't* need to configure this.
+        args = new String[] { "--inJar", "{input}", "--outJar", "{output}", "--logFile", "accesstransform.log"};
     }
 
     @Override
@@ -50,38 +50,35 @@ public class RenameJarSrg2Mcp extends JarExec {
         Map<String, String> replace = new HashMap<>();
         replace.put("{input}", getInput().getAbsolutePath());
         replace.put("{output}", getOutput().getAbsolutePath());
-        replace.put("{mappings}", getMappings().getAbsolutePath());
-        replace.put("{strip}", getSignatureRemoval()? "--strip-signatures" : "");
 
-        return Arrays.stream(getArgs()).map(arg -> replace.getOrDefault(arg, arg)).filter(it -> !it.isEmpty()).collect(Collectors.toList());
-    }
-
-    public boolean getSignatureRemoval() {
-        return this.signatureRemoval;
-    }
-    public void setSignatureRemoval(boolean value) {
-        this.signatureRemoval = value;
+        List<String> ret = Arrays.stream(getArgs()).map(arg -> replace.getOrDefault(arg, arg)).collect(Collectors.toList());
+        ats.forEach(f -> {
+            ret.add("--atFile");
+            ret.add(f.getAbsolutePath());
+        });
+        return ret;
     }
 
-    @InputFile
-    public File getMappings() {
-        return mappings.get();
+    @InputFiles
+    public List<File> getAts() {
+        return ats;
     }
-    public void setMappings(File value) {
-        this.mappings = () -> value;
+    public void setAts(Iterable<File> values) {
+        if (ats == null)
+            ats = new ArrayList<>();
+        values.forEach(ats::add);
     }
-    public void setMappings(Supplier<File> value) {
-        this.mappings = value;
+    public void setAts(File... values) {
+        if (ats == null)
+            ats = new ArrayList<>();
+        ats.addAll(Arrays.asList(values));
     }
 
     @InputFile
     public File getInput() {
-        return input.get();
+        return input;
     }
     public void setInput(File value) {
-        this.input = () -> value;
-    }
-    public void setInput(Supplier<File> value) {
         this.input = value;
     }
 

@@ -18,7 +18,7 @@
  * USA
  */
 
-package net.minecraftforge.gradle.userdev.tasks;
+package net.minecraftforge.gradle.userdev.task;
 
 import org.gradle.api.internal.tasks.compile.CleaningJavaCompiler;
 import org.gradle.api.internal.tasks.compile.DefaultJavaCompileSpec;

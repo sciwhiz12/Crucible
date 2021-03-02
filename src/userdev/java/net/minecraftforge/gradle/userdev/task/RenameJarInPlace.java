@@ -18,17 +18,10 @@
  * USA
  */
 
-package net.minecraftforge.gradle.userdev.tasks;
-
-import org.gradle.api.tasks.InputFile;
-import org.gradle.api.tasks.InputFiles;
-import org.gradle.api.tasks.Optional;
-import org.gradle.api.tasks.OutputFile;
-
-import net.minecraftforge.gradle.common.task.JarExec;
-import net.minecraftforge.gradle.common.util.Utils;
+package net.minecraftforge.gradle.userdev.task;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -38,23 +31,33 @@ import java.util.Map;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-public class RenameJar extends JarExec {
+import org.apache.commons.io.FileUtils;
+import org.gradle.api.tasks.InputFile;
+import org.gradle.api.tasks.InputFiles;
+import org.gradle.api.tasks.Optional;
+import org.gradle.api.tasks.TaskAction;
+
+import net.minecraftforge.gradle.common.task.JarExec;
+import net.minecraftforge.gradle.common.util.Utils;
+
+public class RenameJarInPlace extends JarExec {
     private Supplier<File> input;
-    private File output;
+    private File temp;
     private Supplier<File> mappings;
     private List<Supplier<File>> extraMappings;
 
-    public RenameJar() {
+    public RenameJarInPlace() {
         tool = Utils.SPECIALSOURCE;
-        args = new String[] { "--in-jar", "{input}", "--out-jar", "{output}", "--srg-in", "{mappings}"};
+        args = new String[] { "--in-jar", "{input}", "--out-jar", "{output}", "--srg-in", "{mappings}", "--live"};
+        this.getOutputs().upToDateWhen(task -> false);
     }
 
     @Override
     protected List<String> filterArgs() {
+
         Map<String, String> replace = new HashMap<>();
         replace.put("{input}", getInput().getAbsolutePath());
-        replace.put("{output}", getOutput().getAbsolutePath());
-        replace.put("{mappings}", getMappings().getAbsolutePath());
+        replace.put("{output}", temp.getAbsolutePath());
 
         List<String> _args = new ArrayList<>();
         for (String arg : getArgs()) {
@@ -72,6 +75,18 @@ public class RenameJar extends JarExec {
         }
 
         return _args;
+    }
+
+    @Override
+    @TaskAction
+    public void apply() throws IOException {
+        temp = getProject().file("build/" + getName() + "/output.jar");
+        if (!temp.getParentFile().exists())
+            temp.getParentFile().mkdirs();
+
+        super.apply();
+
+        FileUtils.copyFile(temp, getInput());
     }
 
     @InputFile
@@ -128,16 +143,5 @@ public class RenameJar extends JarExec {
     }
     public void input(Supplier<File> value) {
         this.setInput(value);
-    }
-
-    @OutputFile
-    public File getOutput() {
-        return output;
-    }
-    public void setOutput(File value) {
-        this.output = value;
-    }
-    public void output(File value) {
-        this.setOutput(value);
     }
 }

@@ -47,7 +47,7 @@ import com.google.common.io.Files;
 
 import de.siegmar.fastcsv.reader.NamedCsvReader;
 
-public class TaskCreateExc extends DefaultTask {
+public class CreateExc extends DefaultTask {
     private static Pattern CLS_ENTRY = Pattern.compile("L([^;]+);");
 
     private File srg;

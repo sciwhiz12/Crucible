@@ -27,9 +27,9 @@ import net.minecraftforge.gradle.common.util.MojangLicenseHelper;
 import net.minecraftforge.gradle.common.util.Utils;
 import net.minecraftforge.gradle.common.util.VersionJson;
 import net.minecraftforge.gradle.mcp.MCPRepo;
-import net.minecraftforge.gradle.mcp.task.DownloadMCPMappingsTask;
+import net.minecraftforge.gradle.mcp.task.DownloadMCPMappings;
 import net.minecraftforge.gradle.mcp.task.GenerateSRG;
-import net.minecraftforge.gradle.userdev.tasks.RenameJarInPlace;
+import net.minecraftforge.gradle.userdev.task.RenameJarInPlace;
 import net.minecraftforge.gradle.userdev.util.DeobfuscatingRepo;
 import net.minecraftforge.gradle.userdev.util.Deobfuscator;
 import net.minecraftforge.gradle.userdev.util.DependencyRemapper;
@@ -184,11 +184,11 @@ public class UserDevPlugin implements Plugin<Project> {
             JavaPluginConvention javaConv = (JavaPluginConvention) project.getConvention().getPlugins().get("java");
             Set<File> srcDirs = javaConv.getSourceSets().getByName("main").getJava().getSrcDirs();
 
-            TaskProvider<DownloadMCPMappingsTask> dlMappingsNew = project.getTasks().register("downloadMappingsNew", DownloadMCPMappingsTask.class);
-            TaskProvider<TaskExtractRangeMap> extractRangeConfig = project.getTasks().register("extractRangeMap", TaskExtractRangeMap.class);
-            TaskProvider<TaskApplyRangeMap> applyRangeConfig = project.getTasks().register("applyRangeMap", TaskApplyRangeMap.class);
-            TaskProvider<TaskApplyMappings> toMCPNew = project.getTasks().register("srg2mcpNew", TaskApplyMappings.class);
-            TaskProvider<TaskExtractExistingFiles> extractMappedNew = project.getTasks().register("extractMappedNew", TaskExtractExistingFiles.class);
+            TaskProvider<DownloadMCPMappings> dlMappingsNew = project.getTasks().register("downloadMappingsNew", DownloadMCPMappings.class);
+            TaskProvider<ExtractRangeMap> extractRangeConfig = project.getTasks().register("extractRangeMap", ExtractRangeMap.class);
+            TaskProvider<ApplyRangeMap> applyRangeConfig = project.getTasks().register("applyRangeMap", ApplyRangeMap.class);
+            TaskProvider<ApplyMappings> toMCPNew = project.getTasks().register("srg2mcpNew", ApplyMappings.class);
+            TaskProvider<ExtractExistingFiles> extractMappedNew = project.getTasks().register("extractMappedNew", ExtractExistingFiles.class);
 
             extractRangeConfig.configure(task -> {
                 task.addSources(srcDirs);
