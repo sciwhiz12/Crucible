@@ -20,7 +20,22 @@
 
 package net.minecraftforge.gradle.userdev;
 
-import net.minecraftforge.gradle.common.task.*;
+import javax.annotation.Nonnull;
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
+
+import net.minecraftforge.gradle.common.task.ApplyMappings;
+import net.minecraftforge.gradle.common.task.ApplyRangeMap;
+import net.minecraftforge.gradle.common.task.DownloadAssets;
+import net.minecraftforge.gradle.common.task.DownloadMCMeta;
+import net.minecraftforge.gradle.common.task.DownloadMavenArtifact;
+import net.minecraftforge.gradle.common.task.ExtractExistingFiles;
+import net.minecraftforge.gradle.common.task.ExtractMCPData;
+import net.minecraftforge.gradle.common.task.ExtractNatives;
+import net.minecraftforge.gradle.common.task.ExtractRangeMap;
 import net.minecraftforge.gradle.common.util.BaseRepo;
 import net.minecraftforge.gradle.common.util.MinecraftRepo;
 import net.minecraftforge.gradle.common.util.MojangLicenseHelper;
@@ -34,8 +49,11 @@ import net.minecraftforge.gradle.userdev.util.DeobfuscatingRepo;
 import net.minecraftforge.gradle.userdev.util.Deobfuscator;
 import net.minecraftforge.gradle.userdev.util.DependencyRemapper;
 import net.minecraftforge.srgutils.IMappingFile;
-
-import org.gradle.api.*;
+import org.gradle.api.DefaultTask;
+import org.gradle.api.NamedDomainObjectContainer;
+import org.gradle.api.Plugin;
+import org.gradle.api.Project;
+import org.gradle.api.Task;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.Dependency;
 import org.gradle.api.artifacts.DependencySet;
@@ -46,13 +64,6 @@ import org.gradle.api.plugins.JavaPluginConvention;
 import org.gradle.api.tasks.TaskProvider;
 import org.gradle.api.tasks.bundling.Jar;
 import org.gradle.api.tasks.compile.JavaCompile;
-
-import javax.annotation.Nonnull;
-import java.io.File;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Set;
-import java.util.concurrent.TimeUnit;
 
 public class UserDevPlugin implements Plugin<Project> {
     private static String MINECRAFT = "minecraft";
@@ -71,36 +82,7 @@ public class UserDevPlugin implements Plugin<Project> {
         }
         final File nativesFolder = project.file("build/natives/");
 
-        NamedDomainObjectContainer<RenameJarInPlace> reobf = project.container(RenameJarInPlace.class, jarName -> {
-            String name = Character.toUpperCase(jarName.charAt(0)) + jarName.substring(1);
-            JavaPluginConvention java = (JavaPluginConvention) project.getConvention().getPlugins().get("java");
-
-            final RenameJarInPlace task = project.getTasks().maybeCreate("reobf" + name, RenameJarInPlace.class);
-            task.setClasspath(java.getSourceSets().getByName("main").getCompileClasspath());
-
-            final Task createMcpToSrg = project.getTasks().findByName("createMcpToSrg");
-            if (createMcpToSrg != null) {
-                task.setMappings(() -> createMcpToSrg.getOutputs().getFiles().getSingleFile());
-            }
-
-            project.getTasks().getByName("assemble").dependsOn(task);
-
-            // do after-Evaluate resolution, for the same of good error reporting
-            project.afterEvaluate(p -> {
-                Task jar = project.getTasks().getByName(jarName);
-                if (!(jar instanceof Jar))
-                    throw new IllegalStateException(jarName + "  is not a jar task. Can only reobf jars!");
-                task.setInput(((Jar) jar).getArchiveFile().get().getAsFile());
-                task.dependsOn(jar);
-
-                if (createMcpToSrg != null && task.getMappings().equals(createMcpToSrg.getOutputs().getFiles().getSingleFile())) {
-                    task.dependsOn(createMcpToSrg); // Add needed dependency if uses default mappings
-                }
-            });
-
-            return task;
-        });
-        project.getExtensions().add("reobf", reobf);
+        NamedDomainObjectContainer<RenameJarInPlace> reobf = createReobfExtension(project);
 
         Configuration minecraft = project.getConfigurations().maybeCreate(MINECRAFT);
         for (String cfg : new String[] {"compile", "implementation"}) {
@@ -316,6 +298,40 @@ public class UserDevPlugin implements Plugin<Project> {
             extension.getRuns().forEach(runConfig -> runConfig.token("asset_index", finalAssetIndex));
             Utils.createRunConfigTasks(extension, extractNatives.get(), downloadAssets.get(), createSrgToMcp.get());
         });
+    }
+
+    private NamedDomainObjectContainer<RenameJarInPlace> createReobfExtension(Project project) {
+        NamedDomainObjectContainer<RenameJarInPlace> reobf = project.container(RenameJarInPlace.class, jarName -> {
+            String name = Character.toUpperCase(jarName.charAt(0)) + jarName.substring(1);
+            JavaPluginConvention java = (JavaPluginConvention) project.getConvention().getPlugins().get("java");
+
+            final RenameJarInPlace task = project.getTasks().maybeCreate("reobf" + name, RenameJarInPlace.class);
+            task.setClasspath(java.getSourceSets().getByName("main").getCompileClasspath());
+
+            final Task createMcpToSrg = project.getTasks().findByName("createMcpToSrg");
+            if (createMcpToSrg != null) {
+                task.setMappings(() -> createMcpToSrg.getOutputs().getFiles().getSingleFile());
+            }
+
+            project.getTasks().getByName("assemble").dependsOn(task);
+
+            // do after-Evaluate resolution, for the same of good error reporting
+            project.afterEvaluate(p -> {
+                Task jar = project.getTasks().getByName(jarName);
+                if (!(jar instanceof Jar))
+                    throw new IllegalStateException(jarName + "  is not a jar task. Can only reobf jars!");
+                task.setInput(((Jar) jar).getArchiveFile().get().getAsFile());
+                task.dependsOn(jar);
+
+                if (createMcpToSrg != null && task.getMappings().equals(createMcpToSrg.getOutputs().getFiles().getSingleFile())) {
+                    task.dependsOn(createMcpToSrg); // Add needed dependency if uses default mappings
+                }
+            });
+
+            return task;
+        });
+        project.getExtensions().add("reobf", reobf);
+        return reobf;
     }
 
 }
