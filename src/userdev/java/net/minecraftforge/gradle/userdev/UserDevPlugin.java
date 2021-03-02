@@ -143,13 +143,13 @@ public class UserDevPlugin implements Plugin<Project> {
 
         hideLicense.configure(task -> {
             task.doLast(_task -> {
-                MojangLicenseHelper.hide(project, extension.getMappingChannel(), extension.getMappingVersion());
+                MojangLicenseHelper.hide(project, extension.getMappingChannel().get(), extension.getMappingVersion().get());
             });
         });
 
         showLicense.configure(task -> {
             task.doLast(_task -> {
-                MojangLicenseHelper.show(project, extension.getMappingChannel(), extension.getMappingVersion());
+                MojangLicenseHelper.show(project, extension.getMappingChannel().get(), extension.getMappingVersion().get());
             });
         });
 
@@ -162,7 +162,7 @@ public class UserDevPlugin implements Plugin<Project> {
             task.setReverse(false);
             task.dependsOn(extractSrg);
             task.setSrg(extractSrg.get().getOutput());
-            task.setMappings(extension.getMappings());
+            task.setMappings(extension.getMappings().get());
             task.setFormat(IMappingFile.Format.SRG);
             task.setOutput(project.file("build/" + createSrgToMcp.getName() + "/output.srg"));
         });
@@ -171,7 +171,7 @@ public class UserDevPlugin implements Plugin<Project> {
             task.setReverse(true);
             task.dependsOn(extractSrg);
             task.setSrg(extractSrg.get().getOutput());
-            task.setMappings(extension.getMappings());
+            task.setMappings(extension.getMappings().get());
         });
 
         extractNatives.configure(task -> {
@@ -247,7 +247,7 @@ public class UserDevPlugin implements Plugin<Project> {
                     throw new IllegalArgumentException("Only allows one minecraft dependency.");
                 deps.remove(dep);
 
-                mcrepo = new MinecraftUserRepo(p, dep.getGroup(), dep.getName(), dep.getVersion(), extension.getAccessTransformers(), extension.getMappings());
+                mcrepo = new MinecraftUserRepo(p, dep.getGroup(), dep.getName(), dep.getVersion(), new ArrayList<>(extension.getAccessTransformers().getFiles()), extension.getMappings().get());
                 String newDep = mcrepo.getDependencyString();
                 //p.getLogger().lifecycle("New Dep: " + newDep);
                 ExternalModuleDependency ext = (ExternalModuleDependency) p.getDependencies().create(newDep);
@@ -267,7 +267,7 @@ public class UserDevPlugin implements Plugin<Project> {
                     project.getLogger().error("DeobfRepo attempted to resolve an origin repo early but failed, this may cause issues with some IDEs");
                 }
             }
-            remapper.attachMappings(extension.getMappings());
+            remapper.attachMappings(extension.getMappings().get());
 
             // We have to add these AFTER our repo so that we get called first, this is annoying...
             new BaseRepo.Builder()
@@ -277,7 +277,7 @@ public class UserDevPlugin implements Plugin<Project> {
                     .add(MinecraftRepo.create(project)) //Provides vanilla extra/slim/data jars. These don't care about OBF names.
                     .attach(project);
 
-            MojangLicenseHelper.displayWarning(p, extension.getMappingChannel(), extension.getMappingVersion(), updateChannel, updateVersion);
+            MojangLicenseHelper.displayWarning(p, extension.getMappingChannel().get(), extension.getMappingVersion().get(), updateChannel, updateVersion);
 
             if (mcrepo == null)
                 throw new IllegalStateException("Missing 'minecraft' dependency entry.");

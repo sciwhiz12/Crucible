@@ -26,8 +26,15 @@ import net.minecraftforge.gradle.common.config.UserdevConfigV2.DataFunction;
 import net.minecraftforge.gradle.common.util.MinecraftExtension;
 import net.minecraftforge.gradle.common.util.RunConfig;
 import org.gradle.api.Project;
+import org.gradle.api.file.ConfigurableFileCollection;
+import org.gradle.api.file.DirectoryProperty;
+import org.gradle.api.file.RegularFileProperty;
+import org.gradle.api.model.ObjectFactory;
+import org.gradle.api.provider.MapProperty;
+import org.gradle.api.provider.Property;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -41,22 +48,35 @@ public class PatcherExtension extends MinecraftExtension {
 
     public static final String EXTENSION_NAME = "patcher";
 
-    public Project parent;
+    private final Property<Project> parent;
 
-    public File cleanSrc, patchedSrc, patches;
-    public String mcVersion;
+    private final RegularFileProperty cleanSrc;
+    private final DirectoryProperty patchedSrc;
+    private final DirectoryProperty patches;
 
-    public boolean srgPatches = true;
+    private final Property<String> mcVersion;
+
+    private boolean srgPatches = true;
     private boolean notchObf = false;
 
-    private List<File> excs;
+    private final ConfigurableFileCollection excs;
     private List<Object> extraExcs, extraMappings;
 
+    @Nullable
     private DataFunction processor;
-    private Map<String, File> processorData;
+    private final MapProperty<String, File> processorData;
 
-    public PatcherExtension(@Nonnull final Project project) {
+    public PatcherExtension(final Project project) {
         super(project);
+        ObjectFactory objects = project.getObjects();
+
+        parent = objects.property(Project.class);
+        cleanSrc = objects.fileProperty();
+        patchedSrc = objects.directoryProperty();
+        patches = objects.directoryProperty();
+        mcVersion = objects.property(String.class);
+        excs = objects.fileCollection();
+        processorData = objects.mapProperty(String.class, File.class);
 
         ImmutableMap.<String, String>builder()
                 .put(project.getName() + "_client", "mcp.client.Start")
@@ -77,64 +97,28 @@ public class PatcherExtension extends MinecraftExtension {
         });
     }
 
-    public void setParent(Project parent) {
-        this.parent = parent;
-    }
-
-    public void parent(Project parent) {
-        setParent(parent);
-    }
-
-    public Project getParent() {
+    public Property<Project> getParent() {
         return parent;
     }
 
-    public void setCleanSrc(File cleanSrc) {
-        this.cleanSrc = cleanSrc;
-    }
-
-    public void cleanSrc(File cleanSrc) {
-        setCleanSrc(cleanSrc);
-    }
-
-    public File getCleanSrc() {
+    public RegularFileProperty getCleanSrc() {
         return cleanSrc;
     }
 
-    public void setPatchedSrc(File patchedSrc) {
-        this.patchedSrc = patchedSrc;
-    }
-
-    public void patchedSrc(File patchedSrc) {
-        setPatchedSrc(patchedSrc);
-    }
-
-    public File getPatchedSrc() {
+    public DirectoryProperty getPatchedSrc() {
         return patchedSrc;
     }
 
-    public void setPatches(File patches) {
-        this.patches = patches;
-    }
-
-    public void patches(File patches) {
-        setPatches(patches);
-    }
-
-    public File getPatches() {
+    public DirectoryProperty getPatches() {
         return patches;
     }
 
-    public void setMcVersion(String mcVersion) {
-        this.mcVersion = mcVersion;
-    }
-
-    public void mcVersion(String mcVersion) {
-        setMcVersion(mcVersion);
-    }
-
-    public String getMcVersion() {
+    public Property<String> getMCVersion() {
         return mcVersion;
+    }
+
+    public boolean isSrgPatches() {
+        return srgPatches;
     }
 
     public void setSrgPatches(boolean srgPatches) {
@@ -149,44 +133,15 @@ public class PatcherExtension extends MinecraftExtension {
         setSrgPatches(true);
     }
 
-    public boolean isSrgPatches() {
-        return srgPatches;
+    public boolean getNotchObf() {
+        return this.notchObf;
     }
 
     public void setNotchObf(boolean value) {
         this.notchObf = value;
     }
 
-    public boolean getNotchObf() {
-        return this.notchObf;
-    }
-
-    public void setExcs(List<File> excs) {
-        this.excs = new ArrayList<>(excs);
-    }
-
-    public void setExcs(File... excs) {
-        setExcs(Arrays.asList(excs));
-    }
-
-    public void setExc(File exc) {
-        setExcs(exc);
-    }
-
-    public void excs(File... excs) {
-        getExcs().addAll(Arrays.asList(excs));
-    }
-
-    public void exc(File exc) {
-        excs(exc);
-    }
-
-    @Nonnull
-    public List<File> getExcs() {
-        if (excs == null) {
-            excs = new ArrayList<>();
-        }
-
+    public ConfigurableFileCollection getExcs() {
         return excs;
     }
 
@@ -202,7 +157,6 @@ public class PatcherExtension extends MinecraftExtension {
         extraExcs(exc); // TODO: Type check!
     }
 
-    @Nonnull
     public List<Object> getExtraExcs() {
         if (extraExcs == null) {
             extraExcs = new ArrayList<>();
@@ -223,7 +177,6 @@ public class PatcherExtension extends MinecraftExtension {
         this.extraMappings = new ArrayList<>(extraMappings);
     }
 
-    @Nonnull
     public List<Object> getExtraMappings() {
         if (extraMappings == null) {
             extraMappings = new ArrayList<>();
@@ -232,15 +185,17 @@ public class PatcherExtension extends MinecraftExtension {
         return extraMappings;
     }
 
+    @Nullable
     public DataFunction getProcessor() {
         return this.processor;
     }
-    public void setProcessor(Map<String, Object> map) {
-        processor(map);
+
+    public MapProperty<String, File> getProcessorData() {
+        return this.processorData;
     }
 
-    public Map<String, File> getProcessorData() {
-        return this.processorData == null ? Collections.emptyMap() : this.processorData;
+    public void setProcessor(Map<String, Object> map) {
+        processor(map);
     }
 
     @SuppressWarnings("unchecked")
@@ -267,7 +222,7 @@ public class PatcherExtension extends MinecraftExtension {
             } else if ("data".equals(key)) {
                 if (!(value instanceof Map))
                     throw new IllegalArgumentException("'data' must be a map of string -> file");
-                this.processorData = (Map<String, File>)value;
+                this.processorData.putAll((Map<String, File>) value);
             } else {
                 throw new IllegalArgumentException("Invalid processor key " + key);
             }
@@ -275,15 +230,8 @@ public class PatcherExtension extends MinecraftExtension {
     }
 
     void copyFrom(PatcherExtension other) {
-        if (mapping_channel == null) {
-            setMappingChannel(other.getMappingChannel());
-        }
-        if (mapping_version == null) {
-            setMappingVersion(other.getMappingVersion());
-        }
-
-        if (mcVersion == null) {
-            setMcVersion(other.getMcVersion());
-        }
+        mappingChannel.convention(other.getMappingChannel());
+        mappingVersion.convention(other.getMappingVersion());
+        mcVersion.convention(other.getMCVersion());
     }
 }

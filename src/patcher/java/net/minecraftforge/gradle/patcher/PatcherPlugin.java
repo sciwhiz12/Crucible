@@ -75,6 +75,7 @@ import org.gradle.api.tasks.compile.JavaCompile;
 import javax.annotation.Nonnull;
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -188,13 +189,13 @@ public class PatcherPlugin implements Plugin<Project> {
 
         hideLicense.configure(task -> {
             task.doLast(_task -> {
-                MojangLicenseHelper.hide(project, extension.getMappingChannel(), extension.getMappingVersion());
+                MojangLicenseHelper.hide(project, extension.getMappingChannel().get(), extension.getMappingVersion().get());
             });
         });
 
         showLicense.configure(task -> {
             task.doLast(_task -> {
-                MojangLicenseHelper.show(project, extension.getMappingChannel(), extension.getMappingVersion());
+                MojangLicenseHelper.show(project, extension.getMappingChannel().get(), extension.getMappingVersion().get());
             });
         });
 
@@ -202,7 +203,7 @@ public class PatcherPlugin implements Plugin<Project> {
             task.dependsOn(sourcesJar, universalJar, userdevJar);
         });
         dlMappingsConfig.configure(task -> {
-            task.setMappings(extension.getMappings());
+            task.setMappings(extension.getMappings().get());
         });
         extractNatives.configure(task -> {
             task.dependsOn(dlMCMetaConfig.get());
@@ -216,7 +217,7 @@ public class PatcherPlugin implements Plugin<Project> {
         applyPatches.configure(task -> {
             task.setOutput(project.file("build/" + task.getName() + "/output.zip"));
             task.setRejects(project.file("build/" + task.getName() + "/rejects.zip"));
-            task.setPatches(extension.patches);
+            task.setPatches(extension.getPatches().get().getAsFile());
             task.setPatchMode(PatchMode.ACCESS);
             if (project.hasProperty(UPDATING_PROPERTY)) {
                 task.setPatchMode(PatchMode.FUZZY);
@@ -233,11 +234,11 @@ public class PatcherPlugin implements Plugin<Project> {
         extractMapped.configure(task -> {
             task.dependsOn(toMCPConfig);
             task.setZip(toMCPConfig.get().getOutput());
-            task.setOutput(extension.patchedSrc);
+            task.setOutput(extension.getPatchedSrc().get().getAsFile());
         });
         extractRangeConfig.configure(task -> {
             task.dependsOn(jarConfig);
-            task.setOnlyIf(t -> extension.patches != null);
+            task.setOnlyIf(t -> extension.getPatches().isPresent());
             task.addDependencies(jarConfig.getArchiveFile().get().getAsFile());
         });
         createMcp2Srg.configure(task -> {
@@ -262,19 +263,19 @@ public class PatcherPlugin implements Plugin<Project> {
             task.setExcFiles(createExc.get().getOutput());
         });
         applyRangeBaseConfig.configure(task -> {
-            task.setOnlyIf(t -> extension.patches != null);
+            task.setOnlyIf(t -> extension.getPatches().isPresent());
             task.dependsOn(extractRangeConfig, createMcp2Srg, createExc);
             task.setRangeMap(extractRangeConfig.get().getOutput());
             task.setSrgFiles(createMcp2Srg.get().getOutput());
             task.setExcFiles(createExc.get().getOutput());
         });
         genPatches.configure(task -> {
-            task.setOnlyIf(t -> extension.patches != null);
-            task.setOutput(extension.patches);
+            task.setOnlyIf(t -> extension.getPatches().isPresent());
+            task.setOutput(extension.getPatches().get().getAsFile());
         });
         bakePatches.configure(task -> {
             task.dependsOn(genPatches);
-            task.setInput(extension.patches);
+            task.setInput(extension.getPatches().get().getAsFile());
             task.setOutput(new File(task.getTemporaryDir(), "output.zip"));
         });
 
@@ -286,19 +287,19 @@ public class PatcherPlugin implements Plugin<Project> {
         genJoinedBinPatches.configure(task -> {
             task.dependsOn(reobfJar);
             task.setDirtyJar(reobfJar.get().getOutput());
-            task.addPatchSet(extension.patches);
+            task.addPatchSet(extension.getPatches().get().getAsFile());
             task.setSide("joined");
         });
         genClientBinPatches.configure(task -> {
             task.dependsOn(reobfJar);
             task.setDirtyJar(reobfJar.get().getOutput());
-            task.addPatchSet(extension.patches);
+            task.addPatchSet(extension.getPatches().get().getAsFile());
             task.setSide("client");
         });
         genServerBinPatches.configure(task -> {
             task.dependsOn(reobfJar);
             task.setDirtyJar(reobfJar.get().getOutput());
-            task.addPatchSet(extension.patches);
+            task.addPatchSet(extension.getPatches().get().getAsFile());
             task.setSide("server");
         });
         genBinPatches.configure(task -> {
@@ -382,16 +383,16 @@ public class PatcherPlugin implements Plugin<Project> {
         project.afterEvaluate(p -> {
             //Add PatchedSrc to a main sourceset and build range tasks
             SourceSet mainSource = javaConv.getSourceSets().getByName(SourceSet.MAIN_SOURCE_SET_NAME);
-            applyRangeConfig.get().setSources(mainSource.getJava().getSrcDirs().stream().filter(f -> !f.equals(extension.patchedSrc)).collect(Collectors.toList()));
-            applyRangeBaseConfig.get().setSources(extension.patchedSrc);
+            applyRangeConfig.get().setSources(mainSource.getJava().getSrcDirs().stream().filter(f -> !f.equals(extension.getPatchedSrc().get().getAsFile())).collect(Collectors.toList()));
+            applyRangeBaseConfig.get().setSources(extension.getPatchedSrc().get().getAsFile());
             mainSource.java(v -> {
-                v.srcDir(extension.patchedSrc);
+                v.srcDir(extension.getPatchedSrc().get().getAsFile());
             });
 
             if (doingUpdate) {
                 ExtractExistingFiles extract = (ExtractExistingFiles)p.getTasks().getByName(EXTRACT_NEW_MAPPED_TASK_NAME);
                 for (File dir : mainSource.getJava().getSrcDirs()) {
-                    if (dir.equals(extension.patchedSrc)) //Don't overwrite the patched code, re-setup the project.
+                    if (dir.equals(extension.getPatchedSrc().get().getAsFile())) //Don't overwrite the patched code, re-setup the project.
                         continue;
                     extract.addTarget(dir);
                 }
@@ -404,11 +405,11 @@ public class PatcherPlugin implements Plugin<Project> {
             extractRangeConfig.get().addSources(mainSource.getJava().getSrcDirs());
             extractRangeConfig.get().addDependencies(javaCompile.getClasspath());
 
-            if (extension.patches != null && !extension.patches.exists()) { //Auto-make folders so that gradle doesnt explode some tasks.
-                extension.patches.mkdirs();
+            if (extension.getPatches().isPresent() && !extension.getPatches().get().getAsFile().exists()) { //Auto-make folders so that gradle doesnt explode some tasks.
+                extension.getPatches().get().getAsFile().mkdirs();
             }
 
-            if (extension.patches != null) {
+            if (extension.getPatches().isPresent()) {
                 sourcesJar.get().dependsOn(genPatches);
                 sourcesJar.get().from(genPatches.get().getOutput(), e -> {
                     e.into("patches/");
@@ -416,13 +417,14 @@ public class PatcherPlugin implements Plugin<Project> {
             }
             TaskProvider<DynamicJarExec> procConfig = extension.getProcessor() == null ? null : project.getTasks().register("postProcess", DynamicJarExec.class);
 
-            if (extension.parent != null) { //Most of this is done after evaluate, and checks for nulls to allow the build script to override us. We can't do it in the config step because if someone configs a task in the build script it resolves our config during evaluation.
-                TaskContainer tasks = extension.parent.getTasks();
-                MCPPlugin mcp = extension.parent.getPlugins().findPlugin(MCPPlugin.class);
-                PatcherPlugin patcher = extension.parent.getPlugins().findPlugin(PatcherPlugin.class);
+            if (extension.getParent().isPresent()) { //Most of this is done after evaluate, and checks for nulls to allow the build script to override us. We can't do it in the config step because if someone configs a task in the build script it resolves our config during evaluation.
+                Project parent = extension.getParent().get();
+                TaskContainer tasks = parent.getTasks();
+                MCPPlugin mcp = parent.getPlugins().findPlugin(MCPPlugin.class);
+                PatcherPlugin patcher = parent.getPlugins().findPlugin(PatcherPlugin.class);
 
                 if (mcp != null) {
-                    MojangLicenseHelper.displayWarning(p, extension.getMappingChannel(), extension.getMappingVersion(), updateChannel, updateVersion);
+                    MojangLicenseHelper.displayWarning(p, extension.getMappingChannel().get(), extension.getMappingVersion().get(), updateChannel, updateVersion);
                     SetupMCP setupMCP = (SetupMCP) tasks.getByName(MCPPlugin.SETUP_MCP_TASK_NAME);
 
                     if (procConfig != null) {
@@ -430,25 +432,25 @@ public class PatcherPlugin implements Plugin<Project> {
                         procConfig.get().setInput(setupMCP.getOutput());
                         procConfig.get().setTool(extension.getProcessor().getVersion());
                         procConfig.get().setArgs(extension.getProcessor().getArgs());
-                        extension.getProcessorData().forEach((key, value) -> procConfig.get().setData(key, value));
+                        extension.getProcessorData().get().forEach((key, value) -> procConfig.get().setData(key, value));
                     }
 
-                    if (extension.cleanSrc == null) {
+                    if (!extension.getCleanSrc().isPresent()) {
                         if (procConfig != null) {
-                            extension.cleanSrc = procConfig.get().getOutput();
+                            extension.getCleanSrc().set(procConfig.get().getOutput());
                             applyPatches.get().dependsOn(procConfig);
                             genPatches.get().dependsOn(procConfig);
                         } else {
-                            extension.cleanSrc = setupMCP.getOutput();
+                            extension.getCleanSrc().set(setupMCP.getOutput());
                             applyPatches.get().dependsOn(setupMCP);
                             genPatches.get().dependsOn(setupMCP);
                         }
                     }
                     if (applyPatches.get().getBase() == null) {
-                        applyPatches.get().setBase(extension.cleanSrc);
+                        applyPatches.get().setBase(extension.getCleanSrc().get().getAsFile());
                     }
                     if (genPatches.get().getBase() == null) {
-                        genPatches.get().setBase(extension.cleanSrc);
+                        genPatches.get().setBase(extension.getCleanSrc().get().getAsFile());
                     }
 
                     DownloadMCPConfig dlMCP = (DownloadMCPConfig)tasks.getByName(MCPPlugin.DOWNLOAD_MCPCONFIG_TASK_NAME);
@@ -488,7 +490,7 @@ public class PatcherPlugin implements Plugin<Project> {
                         createExc.get().dependsOn(ext);
                     }
                 } else if (patcher != null) {
-                    PatcherExtension pExt = extension.parent.getExtensions().getByType(PatcherExtension.class);
+                    PatcherExtension pExt = parent.getExtensions().getByType(PatcherExtension.class);
                     extension.copyFrom(pExt);
 
                     ApplyPatches parentApply = (ApplyPatches) tasks.getByName(applyPatches.get().getName());
@@ -497,25 +499,25 @@ public class PatcherPlugin implements Plugin<Project> {
                         procConfig.get().setInput(parentApply.getOutput());
                         procConfig.get().setTool(extension.getProcessor().getVersion());
                         procConfig.get().setArgs(extension.getProcessor().getArgs());
-                        extension.getProcessorData().forEach((key, value) -> procConfig.get().setData(key, value));
+                        extension.getProcessorData().get().forEach((key, value) -> procConfig.get().setData(key, value));
                     }
 
-                    if (extension.cleanSrc == null) {
+                    if (!extension.getCleanSrc().isPresent()) {
                         if (procConfig != null) {
-                            extension.cleanSrc = procConfig.get().getOutput();
+                            extension.getCleanSrc().set(procConfig.get().getOutput());
                             applyPatches.get().dependsOn(procConfig);
                             genPatches.get().dependsOn(procConfig);
                         } else {
-                            extension.cleanSrc = parentApply.getOutput();
+                            extension.getCleanSrc().set(parentApply.getOutput());
                             applyPatches.get().dependsOn(parentApply);
                             genPatches.get().dependsOn(parentApply);
                         }
                     }
                     if (applyPatches.get().getBase() == null) {
-                        applyPatches.get().setBase(extension.cleanSrc);
+                        applyPatches.get().setBase(extension.getCleanSrc().get().getAsFile());
                     }
                     if (genPatches.get().getBase() == null) {
-                        genPatches.get().setBase(extension.cleanSrc);
+                        genPatches.get().setBase(extension.getCleanSrc().get().getAsFile());
                     }
 
                     if (createMcp2Srg.get().getSrg() == null) {
@@ -577,7 +579,7 @@ public class PatcherPlugin implements Plugin<Project> {
                 }
 
                 if (dlMappingsConfig.get().getMappings() == null) {
-                    dlMappingsConfig.get().setMappings(extension.getMappings());
+                    dlMappingsConfig.get().setMappings(extension.getMappings().get());
                 }
 
                 for (TaskProvider<GenerateSRG> genSrg : Arrays.asList(createMcp2Srg, createSrg2Mcp, createMcp2Obf)) {
@@ -601,18 +603,18 @@ public class PatcherPlugin implements Plugin<Project> {
             if (mcp == null) {
                 throw new IllegalStateException("Could not find MCP parent project, you must specify a parent chain to MCP.");
             }
-            String mcp_version = mcp.getExtensions().findByType(MCPExtension.class).getConfig().getVersion();
+            String mcp_version = mcp.getExtensions().findByType(MCPExtension.class).getConfig().get().getVersion();
             project.getDependencies().add(MINECRAFT_IMPLEMENTATION_CONFIGURATION_NAME, "net.minecraft:client:" + mcp_version + ":extra"); //Needs to be client extra, to get the data files.
-            project.getDependencies().add(MINECRAFT_IMPLEMENTATION_CONFIGURATION_NAME, MCPRepo.getMappingDep(extension.getMappingChannel(), extension.getMappingVersion())); //Add mappings so that it can be used by reflection tools.
+            project.getDependencies().add(MINECRAFT_IMPLEMENTATION_CONFIGURATION_NAME, MCPRepo.getMappingDep(extension.getMappingChannel().get(), extension.getMappingVersion().get())); //Add mappings so that it can be used by reflection tools.
 
             if (dlMCMetaConfig.get().getMCVersion() == null) {
-                dlMCMetaConfig.get().setMCVersion(extension.mcVersion);
+                dlMCMetaConfig.get().setMCVersion(extension.getMCVersion().get());
             }
 
             if (!extension.getAccessTransformers().isEmpty()) {
                 SetupMCP setupMCP = (SetupMCP) mcp.getTasks().getByName(MCPPlugin.SETUP_MCP_TASK_NAME);
                 @SuppressWarnings("deprecation")
-                MCPFunction function = MCPFunctionFactory.createAT(mcp, extension.getAccessTransformers(), Collections.emptyList());
+                MCPFunction function = MCPFunctionFactory.createAT(mcp, new ArrayList<>(extension.getAccessTransformers().getFiles()), Collections.emptyList());
                 setupMCP.addPreDecompile(project.getName() + "AccessTransformer", function);
                 extension.getAccessTransformers().forEach(f -> {
                     userdevJar.get().from(f, e -> e.into("ats/"));
@@ -623,7 +625,7 @@ public class PatcherPlugin implements Plugin<Project> {
             if (!extension.getSideAnnotationStrippers().isEmpty()) {
                 SetupMCP setupMCP = (SetupMCP) mcp.getTasks().getByName(MCPPlugin.SETUP_MCP_TASK_NAME);
                 @SuppressWarnings("deprecation")
-                MCPFunction function = MCPFunctionFactory.createSAS(mcp, extension.getSideAnnotationStrippers(), Collections.emptyList());
+                MCPFunction function = MCPFunctionFactory.createSAS(mcp, new ArrayList<>(extension.getSideAnnotationStrippers().getFiles()), Collections.emptyList());
                 setupMCP.addPreDecompile(project.getName() + "SideStripper", function);
                 extension.getSideAnnotationStrippers().forEach(f -> {
                     userdevJar.get().from(f, e -> e.into("sas/"));
@@ -639,8 +641,8 @@ public class PatcherPlugin implements Plugin<Project> {
                         fakePatches = project.getTasks().register(CREATE_FAKE_SAS_PATCHES_TASK_NAME, CreateFakeSASPatches.class).get();
                     ext.getSideAnnotationStrippers().forEach(fakePatches::addFile);
                 }
-                if (ext.parent != null)
-                    ext = ext.parent.getExtensions().findByType(PatcherExtension.class);
+                if (ext.getParent().isPresent())
+                    ext = ext.getParent().get().getExtensions().findByType(PatcherExtension.class);
             }
 
             if (fakePatches != null) {
@@ -650,8 +652,8 @@ public class PatcherPlugin implements Plugin<Project> {
                 }
             }
 
-            applyRangeConfig.get().setExcFiles(extension.getExcs());
-            applyRangeBaseConfig.get().setExcFiles(extension.getExcs());
+            applyRangeConfig.get().setExcFiles(extension.getExcs().getFiles());
+            applyRangeBaseConfig.get().setExcFiles(extension.getExcs().getFiles());
 
             if (!extension.getExtraMappings().isEmpty()) {
                 extension.getExtraMappings().stream().filter(e -> e instanceof File).map(e -> (File) e).forEach(e -> {
@@ -681,7 +683,7 @@ public class PatcherPlugin implements Plugin<Project> {
             if (procConfig != null) {
                 userdevJar.get().dependsOn(procConfig);
                 userdevConfig.get().setProcessor(extension.getProcessor());
-                extension.getProcessorData().forEach((key, value) -> {
+                extension.getProcessorData().get().forEach((key, value) -> {
                     userdevJar.get().from(value, c -> c.into("processor/"));
                     userdevConfig.get().addProcessorData(key, value);
                 });
@@ -702,7 +704,7 @@ public class PatcherPlugin implements Plugin<Project> {
 
                 //Zip up the current working folder as genPatches takes a zip
                 Zip dirtyZip = project.getTasks().register(PATCHED_ZIP_TASK_NAME, Zip.class).get();
-                dirtyZip.from(extension.patchedSrc);
+                dirtyZip.from(extension.getPatchedSrc());
                 dirtyZip.getArchiveFileName().set("output.zip");
                 dirtyZip.getDestinationDirectory().set(project.file("build/" + dirtyZip.getName() + "/"));
 
@@ -765,7 +767,7 @@ public class PatcherPlugin implements Plugin<Project> {
                 e.printStackTrace();
 
                 // Fallback to MC version
-                tokens.put("asset_index", extension.getMcVersion());
+                tokens.put("asset_index", extension.getMCVersion().get());
             }
 
             extension.getRuns().forEach(runConfig -> runConfig.tokens(tokens));
@@ -776,15 +778,16 @@ public class PatcherPlugin implements Plugin<Project> {
 
     private Project getMcpParent(Project project) {
         final PatcherExtension extension = project.getExtensions().findByType(PatcherExtension.class);
-        if (extension == null || extension.parent == null) {
+        if (extension == null || !extension.getParent().isPresent()) {
             return null;
         }
-        MCPPlugin mcp = extension.parent.getPlugins().findPlugin(MCPPlugin.class);
-        PatcherPlugin patcher = extension.parent.getPlugins().findPlugin(PatcherPlugin.class);
+        Project parent = extension.getParent().get();
+        MCPPlugin mcp = parent.getPlugins().findPlugin(MCPPlugin.class);
+        PatcherPlugin patcher = parent.getPlugins().findPlugin(PatcherPlugin.class);
         if (mcp != null) {
-            return extension.parent;
+            return parent;
         } else if (patcher != null) {
-            return getMcpParent(extension.parent);
+            return getMcpParent(parent);
         }
         return null;
     }

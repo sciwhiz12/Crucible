@@ -50,7 +50,7 @@ public class MCPPlugin implements Plugin<Project> {
         });
         setupMCP.configure(task -> {
             task.dependsOn(downloadConfig);
-            task.setPipeline(extension.pipeline);
+            task.setPipeline(extension.getPipeline().get());
             task.setConfig(downloadConfig.get().getOutput());
         });
     }

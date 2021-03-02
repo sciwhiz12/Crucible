@@ -128,14 +128,14 @@ public class GenerateUserdevConfig extends DefaultTask {
         MCPExtension mcp = project.getExtensions().findByType(MCPExtension.class);
 
         if (patcher != null) {
-            if (project != getProject() && patcher.patches != null) { //patches == null means they dont add anything, used by us as a 'clean' workspace.
+            if (project != getProject() && patcher.getPatches().isPresent()) { //patches == null means they dont add anything, used by us as a 'clean' workspace.
                 if (json.parent == null) {
                     json.parent = String.format("%s:%s:%s:userdev", project.getGroup(), project.getName(), project.getVersion());
                     return;
                 }
             }
-            if (patcher.parent != null) {
-                addParent(json, patcher.parent);
+            if (patcher.getParent().isPresent()) {
+                addParent(json, patcher.getParent().get());
             }
             //TODO: MCP/Parents without separate projects?
         } else {
