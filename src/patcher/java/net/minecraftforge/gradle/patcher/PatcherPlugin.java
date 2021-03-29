@@ -64,6 +64,7 @@ import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.repositories.MavenArtifactRepository.MetadataSources;
+import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.plugins.JavaPluginConvention;
 import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.TaskContainer;
@@ -97,10 +98,10 @@ public class PatcherPlugin implements Plugin<Project> {
 
         Configuration mcImplementation = project.getConfigurations().maybeCreate(MC_DEP_CONFIG);
         mcImplementation.setCanBeResolved(true);
-        project.getConfigurations().getByName("implementation").extendsFrom(mcImplementation);
+        project.getConfigurations().getByName(JavaPlugin.IMPLEMENTATION_CONFIGURATION_NAME).extendsFrom(mcImplementation);
 
-        Jar jarConfig = (Jar) project.getTasks().getByName("jar");
-        JavaCompile javaCompile = (JavaCompile) project.getTasks().getByName("compileJava");
+        Jar jarConfig = (Jar) project.getTasks().getByName(JavaPlugin.JAR_TASK_NAME);
+        JavaCompile javaCompile = (JavaCompile) project.getTasks().getByName(JavaPlugin.COMPILE_JAVA_TASK_NAME);
 
         TaskProvider<DownloadMCPMappings> dlMappingsConfig = project.getTasks().register("downloadMappings", DownloadMCPMappings.class);
         TaskProvider<DownloadMCMeta> dlMCMetaConfig = project.getTasks().register("downloadMCMeta", DownloadMCMeta.class);
@@ -275,7 +276,7 @@ public class PatcherPlugin implements Plugin<Project> {
         universalJar.configure(task -> {
             task.dependsOn(filterNew);
             task.from(project.zipTree(filterNew.get().getOutput()));
-            task.from(javaConv.getSourceSets().getByName("main").getResources());
+            task.from(javaConv.getSourceSets().getByName(SourceSet.MAIN_SOURCE_SET_NAME).getResources());
             task.getArchiveClassifier().set("universal");
         });
         /*UserDev:
@@ -332,7 +333,7 @@ public class PatcherPlugin implements Plugin<Project> {
 
         project.afterEvaluate(p -> {
             //Add PatchedSrc to a main sourceset and build range tasks
-            SourceSet mainSource = javaConv.getSourceSets().getByName("main");
+            SourceSet mainSource = javaConv.getSourceSets().getByName(SourceSet.MAIN_SOURCE_SET_NAME);
             applyRangeConfig.get().setSources(mainSource.getJava().getSrcDirs().stream().filter(f -> !f.equals(extension.patchedSrc)).collect(Collectors.toList()));
             applyRangeBaseConfig.get().setSources(extension.patchedSrc);
             mainSource.java(v -> {
@@ -521,8 +522,8 @@ public class PatcherPlugin implements Plugin<Project> {
                         }
                     }
 
-                    filterNew.get().dependsOn(tasks.getByName("jar"));
-                    filterNew.get().addBlacklist(((Jar) tasks.getByName("jar")).getArchiveFile().get().getAsFile());
+                    filterNew.get().dependsOn(tasks.getByName(JavaPlugin.JAR_TASK_NAME));
+                    filterNew.get().addBlacklist(((Jar) tasks.getByName(JavaPlugin.JAR_TASK_NAME)).getArchiveFile().get().getAsFile());
                 } else {
                     throw new IllegalStateException("Parent must either be a Patcher or MCP project");
                 }

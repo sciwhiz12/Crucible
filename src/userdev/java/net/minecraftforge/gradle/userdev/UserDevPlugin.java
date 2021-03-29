@@ -61,7 +61,10 @@ import org.gradle.api.artifacts.DependencySet;
 import org.gradle.api.artifacts.ExternalModuleDependency;
 import org.gradle.api.artifacts.repositories.MavenArtifactRepository.MetadataSources;
 import org.gradle.api.logging.Logger;
+import org.gradle.api.plugins.BasePlugin;
+import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.plugins.JavaPluginConvention;
+import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.TaskProvider;
 import org.gradle.api.tasks.bundling.Jar;
 import org.gradle.api.tasks.compile.JavaCompile;
@@ -86,7 +89,7 @@ public class UserDevPlugin implements Plugin<Project> {
         NamedDomainObjectContainer<RenameJarInPlace> reobf = createReobfExtension(project);
 
         Configuration minecraft = project.getConfigurations().maybeCreate(MINECRAFT);
-        for (String cfg : new String[] {"compile", "implementation"}) {
+        for (String cfg : new String[] {JavaPlugin.COMPILE_CONFIGURATION_NAME, JavaPlugin.IMPLEMENTATION_CONFIGURATION_NAME}) {
             Configuration c = project.getConfigurations().findByName(cfg);
             if (c != null)
                 c.extendsFrom(minecraft);
@@ -163,9 +166,9 @@ public class UserDevPlugin implements Plugin<Project> {
         if (doingUpdate) {
             logger.lifecycle("This process uses Srg2Source for java source file renaming. Please forward relevant bug reports to https://github.com/MinecraftForge/Srg2Source/issues.");
 
-            JavaCompile javaCompile = (JavaCompile) project.getTasks().getByName("compileJava");
+            JavaCompile javaCompile = (JavaCompile) project.getTasks().getByName(JavaPlugin.COMPILE_JAVA_TASK_NAME);
             JavaPluginConvention javaConv = (JavaPluginConvention) project.getConvention().getPlugins().get("java");
-            Set<File> srcDirs = javaConv.getSourceSets().getByName("main").getJava().getSrcDirs();
+            Set<File> srcDirs = javaConv.getSourceSets().getByName(SourceSet.MAIN_SOURCE_SET_NAME).getJava().getSrcDirs();
 
             TaskProvider<DownloadMCPMappings> dlMappingsNew = project.getTasks().register("downloadMappingsNew", DownloadMCPMappings.class);
             TaskProvider<ExtractRangeMap> extractRangeConfig = project.getTasks().register("extractRangeMap", ExtractRangeMap.class);
@@ -259,7 +262,7 @@ public class UserDevPlugin implements Plugin<Project> {
             downloadMcpConfig.get().setArtifact("de.oceanlabs.mcp:mcp_config:" + mcpVer + "@zip");
             downloadMCMeta.get().setMCVersion(mcVer);
 
-            RenameJarInPlace reobfJar = reobf.create("jar");
+            RenameJarInPlace reobfJar = reobf.create(JavaPlugin.JAR_TASK_NAME);
             reobfJar.dependsOn(createMcpToSrg);
             reobfJar.setMappings(createMcpToSrg.get().getOutput());
 
@@ -293,14 +296,14 @@ public class UserDevPlugin implements Plugin<Project> {
             JavaPluginConvention java = (JavaPluginConvention) project.getConvention().getPlugins().get("java");
 
             final RenameJarInPlace task = project.getTasks().maybeCreate("reobf" + name, RenameJarInPlace.class);
-            task.setClasspath(java.getSourceSets().getByName("main").getCompileClasspath());
+            task.setClasspath(java.getSourceSets().getByName(SourceSet.MAIN_SOURCE_SET_NAME).getCompileClasspath());
 
             final Task createMcpToSrg = project.getTasks().findByName("createMcpToSrg");
             if (createMcpToSrg != null) {
                 task.setMappings(() -> createMcpToSrg.getOutputs().getFiles().getSingleFile());
             }
 
-            project.getTasks().getByName("assemble").dependsOn(task);
+            project.getTasks().getByName(BasePlugin.ASSEMBLE_TASK_NAME).dependsOn(task);
 
             // do after-Evaluate resolution, for the same of good error reporting
             project.afterEvaluate(p -> {
