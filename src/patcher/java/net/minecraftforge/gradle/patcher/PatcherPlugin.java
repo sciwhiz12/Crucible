@@ -457,8 +457,8 @@ public class PatcherPlugin implements Plugin<Project> {
                     if (createMcp2Srg.get().getSrg() == null) { //TODO: Make extractMCPData macro
                         TaskProvider<ExtractMCPData> ext = project.getTasks().register(EXTRACT_SRG_TASK_NAME, ExtractMCPData.class);
                         ext.get().dependsOn(dlMCP);
-                        ext.get().setConfig(dlMCP.getOutput());
-                        createMcp2Srg.get().setSrg(ext.get().getOutput());
+                        ext.get().getConfig().set(dlMCP.getOutput());
+                        createMcp2Srg.get().setSrg(ext.get().getOutput().get().getAsFile());
                         createMcp2Srg.get().dependsOn(ext);
                     }
 
@@ -470,22 +470,22 @@ public class PatcherPlugin implements Plugin<Project> {
                     if (createExc.get().getStatics() == null) {
                         TaskProvider<ExtractMCPData> ext = project.getTasks().register(EXTRACT_STATIC_TASK_NAME, ExtractMCPData.class);
                         ext.get().dependsOn(dlMCP);
-                        ext.get().setConfig(dlMCP.getOutput());
-                        ext.get().setKey("statics");
+                        ext.get().getConfig().set(dlMCP.getOutput());
+                        ext.get().getKey().set("statics");
                         ext.get().setAllowEmpty(true);
-                        ext.get().setOutput(project.file("build/" + ext.get().getName() + "/output.txt"));
-                        createExc.get().setStatics(ext.get().getOutput());
+                        ext.get().getOutput().set(project.getLayout().getBuildDirectory().dir(ext.getName()).map(d -> d.file("output.txt")));
+                        createExc.get().setStatics(ext.get().getOutput().get().getAsFile());
                         createExc.get().dependsOn(ext);
                     }
 
                     if (createExc.get().getConstructors() == null) {
                         TaskProvider<ExtractMCPData> ext = project.getTasks().register(EXTRACT_CONSTRUCTORS_TASK_NAME, ExtractMCPData.class);
                         ext.get().dependsOn(dlMCP);
-                        ext.get().setConfig(dlMCP.getOutput());
-                        ext.get().setKey("constructors");
+                        ext.get().getConfig().set(dlMCP.getOutput());
+                        ext.get().getKey().set("constructors");
                         ext.get().setAllowEmpty(true);
-                        ext.get().setOutput(project.file("build/" + ext.get().getName() + "/output.txt"));
-                        createExc.get().setConstructors(ext.get().getOutput());
+                        ext.get().getOutput().set(project.getLayout().getBuildDirectory().dir(ext.getName()).map(d -> d.file("output.txt")));
+                        createExc.get().setConstructors(ext.get().getOutput().get().getAsFile());
                         createExc.get().dependsOn(ext);
                     }
                 } else if (patcher != null) {
@@ -522,7 +522,7 @@ public class PatcherPlugin implements Plugin<Project> {
                     if (createMcp2Srg.get().getSrg() == null) {
                         ExtractMCPData extract = ((ExtractMCPData)tasks.getByName(EXTRACT_SRG_TASK_NAME));
                         if (extract != null) {
-                            createMcp2Srg.get().setSrg(extract.getOutput());
+                            createMcp2Srg.get().setSrg(extract.getOutput().get().getAsFile());
                             createMcp2Srg.get().dependsOn(extract);
                         } else {
                             GenerateSRG task = (GenerateSRG)tasks.getByName(createMcp2Srg.get().getName());
@@ -534,7 +534,7 @@ public class PatcherPlugin implements Plugin<Project> {
                     if (createExc.get().getSrg() == null) { //TODO: Make a macro for Srg/Static/Constructors
                         ExtractMCPData extract = ((ExtractMCPData)tasks.getByName(EXTRACT_SRG_TASK_NAME));
                         if (extract != null) {
-                            createExc.get().setSrg(extract.getOutput());
+                            createExc.get().setSrg(extract.getOutput().get().getAsFile());
                             createExc.get().dependsOn(extract);
                         } else {
                             CreateExc task = (CreateExc)tasks.getByName(createExc.get().getName());
@@ -545,7 +545,7 @@ public class PatcherPlugin implements Plugin<Project> {
                     if (createExc.get().getStatics() == null) {
                         ExtractMCPData extract = ((ExtractMCPData) tasks.getByName(EXTRACT_STATIC_TASK_NAME));
                         if (extract != null) {
-                            createExc.get().setStatics(extract.getOutput());
+                            createExc.get().setStatics(extract.getOutput().get().getAsFile());
                             createExc.get().dependsOn(extract);
                         } else {
                             CreateExc task = (CreateExc) tasks.getByName(createExc.get().getName());
@@ -556,7 +556,7 @@ public class PatcherPlugin implements Plugin<Project> {
                     if (createExc.get().getConstructors() == null) {
                         ExtractMCPData extract = ((ExtractMCPData) tasks.getByName(EXTRACT_CONSTRUCTORS_TASK_NAME));
                         if (extract != null) {
-                            createExc.get().setConstructors(extract.getOutput());
+                            createExc.get().setConstructors(extract.getOutput().get().getAsFile());
                             createExc.get().dependsOn(extract);
                         } else {
                             CreateExc task = (CreateExc) tasks.getByName(createExc.get().getName());

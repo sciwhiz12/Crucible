@@ -155,13 +155,13 @@ public class UserDevPlugin implements Plugin<Project> {
 
         extractSrg.configure(task -> {
             task.dependsOn(downloadMcpConfig);
-            task.setConfig(() -> downloadMcpConfig.get().getOutput());
+            task.getConfig().set(downloadMcpConfig.get().getOutput());
         });
 
         createSrgToMcp.configure(task -> {
             task.setReverse(false);
             task.dependsOn(extractSrg);
-            task.setSrg(extractSrg.get().getOutput());
+            task.setSrg(extractSrg.get().getOutput().get().getAsFile());
             task.setMappings(extension.getMappings().get());
             task.setFormat(IMappingFile.Format.SRG);
             task.setOutput(project.file("build/" + createSrgToMcp.getName() + "/output.srg"));
@@ -170,7 +170,7 @@ public class UserDevPlugin implements Plugin<Project> {
         createMcpToSrg.configure(task -> {
             task.setReverse(true);
             task.dependsOn(extractSrg);
-            task.setSrg(extractSrg.get().getOutput());
+            task.setSrg(extractSrg.get().getOutput().get().getAsFile());
             task.setMappings(extension.getMappings().get());
         });
 

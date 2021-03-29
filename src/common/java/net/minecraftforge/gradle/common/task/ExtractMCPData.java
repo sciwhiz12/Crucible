@@ -24,12 +24,13 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.util.function.Supplier;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 import org.apache.commons.io.IOUtils;
 import org.gradle.api.DefaultTask;
+import org.gradle.api.file.RegularFileProperty;
+import org.gradle.api.provider.Property;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputFile;
 import org.gradle.api.tasks.OutputFile;
@@ -39,23 +40,30 @@ import net.minecraftforge.gradle.common.config.MCPConfigV1;
 import net.minecraftforge.gradle.common.config.MCPConfigV2;
 
 public class ExtractMCPData extends DefaultTask {
-    private String key = "mappings";
-    private Supplier<File> configSupplier;
-    private File config;
+    private final Property<String> key;
+    private final RegularFileProperty config;
     private boolean allowEmpty = false;
-    private File output = getProject().file("build/" + getName() + "/output.srg");
+    private final RegularFileProperty output;
+
+    public ExtractMCPData() {
+        config = getProject().getObjects().fileProperty();
+        output = getProject().getObjects().fileProperty()
+                .convention(getProject().getLayout().getBuildDirectory().dir(getName()).map(s -> s.file("output.srg")));
+        key = getProject().getObjects().property(String.class)
+                .convention("mappings");
+    }
 
     @TaskAction
     public void run() throws IOException {
-        MCPConfigV1 cfg = MCPConfigV2.getFromArchive(getConfig());
+        MCPConfigV1 cfg = MCPConfigV2.getFromArchive(config.get().getAsFile());
 
-        try (ZipFile zip = new ZipFile(getConfig())) {
-            String path = cfg.getData(key.split("/"));
-            if (path == null && "statics".equals(key))
+        try (ZipFile zip = new ZipFile(config.get().getAsFile())) {
+            String path = cfg.getData(key.get().split("/"));
+            if (path == null && "statics".equals(key.get()))
                 path = "config/static_methods.txt";
 
             if (path == null) {
-                error("Could not find data entry for '" + key + "'");
+                error("Could not find data entry for '" + key.get() + "'");
                 return;
             }
 
@@ -65,7 +73,7 @@ public class ExtractMCPData extends DefaultTask {
                 return;
             }
 
-            try (OutputStream out = new FileOutputStream(getOutput())) {
+            try (OutputStream out = new FileOutputStream(output.get().getAsFile())) {
                 IOUtils.copy(zip.getInputStream(entry), out);
             }
         }
@@ -75,50 +83,34 @@ public class ExtractMCPData extends DefaultTask {
         if (!isAllowEmpty())
             throw new IllegalStateException(message);
 
-        if (getOutput().exists())
-            getOutput().delete();
+        File outputFile = output.get().getAsFile();
+        if (outputFile.exists())
+            outputFile.delete();
 
-        getOutput().createNewFile();
-    }
-
-    @InputFile
-    public File getConfig() {
-        if (config == null && configSupplier != null)
-            config = configSupplier.get();
-
-        return config;
-    }
-    public void setConfig(File value) {
-        this.config = value;
-        this.configSupplier = null;
-    }
-    public void setConfig(Supplier<File> valueSupplier)
-    {
-        this.configSupplier = valueSupplier;
-        this.config = null;
+        outputFile.createNewFile();
     }
 
     @Input
-    public String getKey() {
-        return this.key;
+    public Property<String> getKey() {
+        return key;
     }
-    public void setKey(String value) {
-        this.key = value;
+
+    @InputFile
+    public RegularFileProperty getConfig() {
+        return config;
     }
 
     @Input
     public boolean isAllowEmpty() {
-        return this.allowEmpty;
+        return allowEmpty;
     }
-    public void setAllowEmpty(boolean value) {
-        this.allowEmpty = value;
+
+    public void setAllowEmpty(boolean allowEmpty) {
+        this.allowEmpty = allowEmpty;
     }
 
     @OutputFile
-    public File getOutput() {
+    public RegularFileProperty getOutput() {
         return output;
-    }
-    public void setOutput(File value) {
-        this.output = value;
     }
 }
