@@ -27,6 +27,7 @@ import net.minecraftforge.gradle.common.util.Artifact;
 import javax.inject.Inject;
 
 public class MCPExtension {
+    public static final String EXTENSION_NAME = "mcp";
 
     private Artifact config;
     public String pipeline;

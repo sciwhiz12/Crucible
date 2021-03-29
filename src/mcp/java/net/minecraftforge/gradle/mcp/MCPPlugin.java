@@ -36,7 +36,7 @@ public class MCPPlugin implements Plugin<Project> {
     @Override
     public void apply(@Nonnull Project project) {
         project.getPlugins().apply(FGBasePlugin.class);
-        MCPExtension extension = project.getExtensions().create("mcp", MCPExtension.class, project);
+        MCPExtension extension = project.getExtensions().create(MCPExtension.EXTENSION_NAME, MCPExtension.class, project);
 
         TaskProvider<DownloadMCPConfig> downloadConfig = project.getTasks().register("downloadConfig", DownloadMCPConfig.class);
         TaskProvider<SetupMCP> setupMCP = project.getTasks().register("setupMCP", SetupMCP.class);
