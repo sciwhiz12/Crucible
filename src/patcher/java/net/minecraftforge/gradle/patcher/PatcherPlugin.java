@@ -233,8 +233,8 @@ public class PatcherPlugin implements Plugin<Project> {
         });
         extractMapped.configure(task -> {
             task.dependsOn(toMCPConfig);
-            task.setZip(toMCPConfig.get().getOutput().get().getAsFile());
-            task.setOutput(extension.getPatchedSrc().get().getAsFile());
+            task.getZip().set(toMCPConfig.flatMap(ApplyMappings::getOutput));
+            task.getOutput().set(extension.getPatchedSrc().get().getAsFile());
         });
         extractRangeConfig.configure(task -> {
             task.dependsOn(jarConfig);
