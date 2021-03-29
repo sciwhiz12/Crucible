@@ -20,8 +20,15 @@
 
 package net.minecraftforge.gradle.common.task;
 
+import java.io.*;
+import java.util.Base64;
+import java.util.Map;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
+
 import org.gradle.api.DefaultTask;
-import org.gradle.api.tasks.Input;
+import org.gradle.api.file.RegularFileProperty;
+import org.gradle.api.tasks.InputFile;
 import org.gradle.api.tasks.OutputFile;
 import org.gradle.api.tasks.TaskAction;
 
@@ -29,55 +36,22 @@ import com.google.common.collect.Maps;
 import com.google.common.hash.Hashing;
 import com.google.common.hash.HashingInputStream;
 
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.util.Base64;
-import java.util.Map;
-import java.util.function.Supplier;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipInputStream;
-
+// TODO: check for uses
 public class ArchiveChecksum extends DefaultTask {
-
-    private Supplier<File> input;
-    private File output;
+    private final RegularFileProperty input;
+    private final RegularFileProperty output;
     //TODO: Filters of some kind?
 
-    @Input
-    public File getInput() {
-        return input.get();
-    }
-    public void setInput(File value) {
-        this.input = () -> value;
-    }
-    public void setInput(Supplier<File> value) {
-        this.input = value;
-    }
-
-    @OutputFile
-    public File getOutput() {
-        if (output == null)
-            output = getProject().file("build/" + getName() + "/output.sha256");
-        return output;
-    }
-
-    public void setOutput(File output) {
-        this.output = output;
-    }
-
-    public void setName(String value) {
-        if (output == null)
-            setOutput(getProject().file("build/" + getName() + "/" + value + ".sha256"));
+    public ArchiveChecksum() {
+        input = getProject().getObjects().fileProperty();
+        output = getProject().getObjects().fileProperty()
+                .convention(getProject().getLayout().getBuildDirectory().dir(getName()).map(s -> s.file("output.sha256")));
     }
 
     @TaskAction
     public void run() throws IOException {
         Map<String, String> checksums = Maps.newTreeMap(); //Tree so we're sorted alphabetically!
-        try (ZipInputStream zin = new ZipInputStream(new FileInputStream(getInput()))) {
+        try (ZipInputStream zin = new ZipInputStream(new FileInputStream(input.get().getAsFile()))) {
             ZipEntry entry;
             byte[] buff = new byte[1024];
             while ((entry = zin.getNextEntry()) != null) {
@@ -88,7 +62,7 @@ public class ArchiveChecksum extends DefaultTask {
             }
         }
 
-        try(PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(getOutput())))) {
+        try(PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter(output.get().getAsFile())))) {
             checksums.forEach((name, hash) -> {
                 out.write(hash);
                 out.write(' ');
@@ -96,5 +70,15 @@ public class ArchiveChecksum extends DefaultTask {
                 out.write('\n');
             });
         }
+    }
+
+    @InputFile
+    public RegularFileProperty getInput() {
+        return this.input;
+    }
+
+    @OutputFile
+    public RegularFileProperty getOutput() {
+        return this.output;
     }
 }
