@@ -20,8 +20,15 @@
 
 package net.minecraftforge.gradle.common.task;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.URL;
+
 import org.apache.commons.io.FileUtils;
 import org.gradle.api.DefaultTask;
+import org.gradle.api.file.RegularFileProperty;
+import org.gradle.api.provider.Property;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.OutputFile;
 import org.gradle.api.tasks.TaskAction;
@@ -31,26 +38,29 @@ import com.google.gson.GsonBuilder;
 
 import net.minecraftforge.gradle.common.util.ManifestJson;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.net.URL;
-
 public class DownloadMCMeta extends DefaultTask {
     private static final String MANIFEST_URL = "https://launchermeta.mojang.com/mc/game/version_manifest.json";
     private static final Gson GSON = new GsonBuilder().create();
 
-    private String mcVersion;
-    private File manifest = getProject().file("build/" + getName() + "/manifest.json");
-    private File output = getProject().file("build/" + getName() + "/version.json");
+    private final Property<String> mcVersion;
+    private final RegularFileProperty manifest;
+    private final RegularFileProperty output;
+
+    public DownloadMCMeta() {
+        mcVersion = getProject().getObjects().property(String.class);
+
+        manifest = getProject().getObjects().fileProperty()
+                .convention(getProject().getLayout().getBuildDirectory().dir(getName()).map(s -> s.file("manifest.json")));
+        output = getProject().getObjects().fileProperty()
+                .convention(getProject().getLayout().getBuildDirectory().dir(getName()).map(s -> s.file("version.json")));
+    }
 
     @TaskAction
     public void downloadMCMeta() throws IOException {
         try (InputStream manin = new URL(MANIFEST_URL).openStream()) {
-            URL url = GSON.fromJson(new InputStreamReader(manin), ManifestJson.class).getUrl(getMCVersion());
+            URL url = GSON.fromJson(new InputStreamReader(manin), ManifestJson.class).getUrl(getMCVersion().get());
             if (url != null) {
-                FileUtils.copyURLToFile(url, getOutput());
+                FileUtils.copyURLToFile(url, getOutput().get().getAsFile());
             } else {
                 throw new RuntimeException("Missing version from manifest: " + getMCVersion());
             }
@@ -58,28 +68,17 @@ public class DownloadMCMeta extends DefaultTask {
     }
 
     @Input
-    public String getMCVersion() {
-        return mcVersion;
+    public Property<String> getMCVersion() {
+        return this.mcVersion;
     }
 
-    public File getManifest() {
-        return manifest;
+    // TODO: check for uses, remove if not used
+    public RegularFileProperty getManifest() {
+        return this.manifest;
     }
 
     @OutputFile
-    public File getOutput() {
-        return output;
-    }
-
-    public void setMCVersion(String mcVersion) {
-        this.mcVersion = mcVersion;
-    }
-
-    public void setManifest(File manifest) {
-        this.manifest = manifest;
-    }
-
-    public void setOutput(File output) {
-        this.output = output;
+    public RegularFileProperty getOutput() {
+        return this.output;
     }
 }

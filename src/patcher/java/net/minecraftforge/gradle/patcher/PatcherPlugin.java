@@ -207,12 +207,12 @@ public class PatcherPlugin implements Plugin<Project> {
         });
         extractNatives.configure(task -> {
             task.dependsOn(dlMCMetaConfig.get());
-            task.setMeta(dlMCMetaConfig.get().getOutput());
+            task.setMeta(dlMCMetaConfig.get().getOutput().get().getAsFile());
             task.setOutput(natives_folder);
         });
         downloadAssets.configure(task -> {
             task.dependsOn(dlMCMetaConfig.get());
-            task.setMeta(dlMCMetaConfig.get().getOutput());
+            task.setMeta(dlMCMetaConfig.get().getOutput().getAsFile().get());
         });
         applyPatches.configure(task -> {
             task.setOutput(project.file("build/" + task.getName() + "/output.zip"));
@@ -607,9 +607,7 @@ public class PatcherPlugin implements Plugin<Project> {
             project.getDependencies().add(MINECRAFT_IMPLEMENTATION_CONFIGURATION_NAME, "net.minecraft:client:" + mcp_version + ":extra"); //Needs to be client extra, to get the data files.
             project.getDependencies().add(MINECRAFT_IMPLEMENTATION_CONFIGURATION_NAME, MCPRepo.getMappingDep(extension.getMappingChannel().get(), extension.getMappingVersion().get())); //Add mappings so that it can be used by reflection tools.
 
-            if (dlMCMetaConfig.get().getMCVersion() == null) {
-                dlMCMetaConfig.get().setMCVersion(extension.getMCVersion().get());
-            }
+            dlMCMetaConfig.get().getMCVersion().convention(extension.getMCVersion());
 
             if (!extension.getAccessTransformers().isEmpty()) {
                 SetupMCP setupMCP = (SetupMCP) mcp.getTasks().getByName(MCPPlugin.SETUP_MCP_TASK_NAME);
@@ -755,12 +753,12 @@ public class PatcherPlugin implements Plugin<Project> {
 
             try {
                 // Check meta exists
-                if (!dlMCMetaConfig.get().getOutput().exists()) {
+                if (!dlMCMetaConfig.get().getOutput().get().getAsFile().exists()) {
                     // Force download meta
                     dlMCMetaConfig.get().downloadMCMeta();
                 }
 
-                VersionJson json = Utils.loadJson(dlMCMetaConfig.get().getOutput(), VersionJson.class);
+                VersionJson json = Utils.loadJson(dlMCMetaConfig.get().getOutput().get().getAsFile(), VersionJson.class);
 
                 tokens.put("asset_index", json.assetIndex.id);
             } catch (IOException e) {

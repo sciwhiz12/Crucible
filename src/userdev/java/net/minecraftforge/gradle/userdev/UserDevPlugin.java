@@ -176,12 +176,12 @@ public class UserDevPlugin implements Plugin<Project> {
 
         extractNatives.configure(task -> {
             task.dependsOn(downloadMCMeta.get());
-            task.setMeta(downloadMCMeta.get().getOutput());
+            task.setMeta(downloadMCMeta.get().getOutput().get().getAsFile());
             task.setOutput(nativesFolder);
         });
         downloadAssets.configure(task -> {
             task.dependsOn(downloadMCMeta.get());
-            task.setMeta(downloadMCMeta.get().getOutput());
+            task.setMeta(downloadMCMeta.get().getOutput().get().getAsFile());
         });
 
         final boolean doingUpdate = project.hasProperty(UPDATE_MAPPINGS_VERSION_PROPERTY);
@@ -286,7 +286,7 @@ public class UserDevPlugin implements Plugin<Project> {
             String mcVer = (String) project.getExtensions().getExtraProperties().get(MC_VERSION_EXT_PROPERTY);
             String mcpVer = (String) project.getExtensions().getExtraProperties().get(MCP_VERSION_EXT_PROPERTY);
             downloadMcpConfig.get().setArtifact("de.oceanlabs.mcp:mcp_config:" + mcpVer + "@zip");
-            downloadMCMeta.get().setMCVersion(mcVer);
+            downloadMCMeta.get().getMCVersion().set(mcVer);
 
             RenameJarInPlace reobfJar = reobf.create(JavaPlugin.JAR_TASK_NAME);
             reobfJar.dependsOn(createMcpToSrg);
@@ -296,12 +296,12 @@ public class UserDevPlugin implements Plugin<Project> {
 
             try {
                 // Check meta exists
-                if (!downloadMCMeta.get().getOutput().exists()) {
+                if (!downloadMCMeta.get().getOutput().get().getAsFile().exists()) {
                     // Force download meta
                     downloadMCMeta.get().downloadMCMeta();
                 }
 
-                VersionJson json = Utils.loadJson(downloadMCMeta.get().getOutput(), VersionJson.class);
+                VersionJson json = Utils.loadJson(downloadMCMeta.get().getOutput().get().getAsFile(), VersionJson.class);
 
                 assetIndex = json.assetIndex.id;
             } catch (IOException e) {
