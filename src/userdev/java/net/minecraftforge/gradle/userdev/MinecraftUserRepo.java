@@ -219,7 +219,7 @@ public class MinecraftUserRepo extends BaseRepo {
 
         Map<String, String> tokens = new HashMap<>();
         tokens.put("assets_root", downloadAssets.getOutput().getAbsolutePath());
-        tokens.put("natives", extractNatives.getOutput().getAbsolutePath());
+        tokens.put("natives", extractNatives.getOutput().get().getAsFile().getAbsolutePath());
         tokens.put("mc_version", mcp.getMCVersion());
         tokens.put("mcp_version", mcp.getArtifact().getVersion());
         tokens.put("mcp_mappings", MAPPING);

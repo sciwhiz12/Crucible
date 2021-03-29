@@ -42,7 +42,7 @@ public class EclipseHacks {
 
     public static void doEclipseFixes(@Nonnull final MinecraftExtension minecraft, @Nonnull final ExtractNatives nativesTask, @Nonnull final List<? extends Task> setupTasks) {
         final Project project = minecraft.getProject();
-        final File natives = nativesTask.getOutput();
+        final File natives = nativesTask.getOutput().get().getAsFile();
 
         final EclipseModel eclipseConv = (EclipseModel)project.getExtensions().findByName("eclipse");
         if (eclipseConv == null) {

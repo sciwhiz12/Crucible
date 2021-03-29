@@ -653,7 +653,7 @@ public class Utils {
             VersionJson json = null;
 
             try {
-                json = Utils.loadJson(extractNatives.getMeta(), VersionJson.class);
+                json = Utils.loadJson(extractNatives.getMeta().get().getAsFile(), VersionJson.class);
             } catch (IOException ignored) {
             }
 

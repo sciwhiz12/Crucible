@@ -176,8 +176,8 @@ public class UserDevPlugin implements Plugin<Project> {
 
         extractNatives.configure(task -> {
             task.dependsOn(downloadMCMeta.get());
-            task.setMeta(downloadMCMeta.get().getOutput().get().getAsFile());
-            task.setOutput(nativesFolder);
+            task.getMeta().set(downloadMCMeta.flatMap(DownloadMCMeta::getOutput));
+            task.getOutput().set(nativesFolder);
         });
         downloadAssets.configure(task -> {
             task.dependsOn(downloadMCMeta.get());

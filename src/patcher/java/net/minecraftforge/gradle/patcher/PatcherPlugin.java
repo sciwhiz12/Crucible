@@ -207,8 +207,8 @@ public class PatcherPlugin implements Plugin<Project> {
         });
         extractNatives.configure(task -> {
             task.dependsOn(dlMCMetaConfig.get());
-            task.setMeta(dlMCMetaConfig.get().getOutput().get().getAsFile());
-            task.setOutput(natives_folder);
+            task.getMeta().set(dlMCMetaConfig.flatMap(DownloadMCMeta::getOutput));
+            task.getOutput().set(natives_folder);
         });
         downloadAssets.configure(task -> {
             task.dependsOn(dlMCMetaConfig.get());
