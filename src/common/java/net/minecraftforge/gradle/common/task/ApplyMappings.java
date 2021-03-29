@@ -20,7 +20,6 @@
 
 package net.minecraftforge.gradle.common.task;
 
-import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -29,6 +28,8 @@ import java.util.zip.ZipOutputStream;
 
 import org.apache.commons.io.IOUtils;
 import org.gradle.api.DefaultTask;
+import org.gradle.api.file.RegularFileProperty;
+import org.gradle.api.provider.Property;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputFile;
 import org.gradle.api.tasks.OutputFile;
@@ -38,18 +39,27 @@ import net.minecraftforge.gradle.common.util.McpNames;
 import net.minecraftforge.gradle.common.util.Utils;
 
 public class ApplyMappings extends DefaultTask {
-    private boolean javadocs = false;
-    private boolean lambdas = true;
-    private File mappings;
-    private File input;
-    private File output = getProject().file("build/" + getName() + "/output.zip");
+    private final RegularFileProperty input;
+    private final RegularFileProperty mappings;
+    private final RegularFileProperty output;
+    private final Property<Boolean> javadocs;
+    private final Property<Boolean> lambdas;
+
+    public ApplyMappings() {
+        input = getProject().getObjects().fileProperty();
+        mappings = getProject().getObjects().fileProperty();
+        output = getProject().getObjects().fileProperty()
+                .convention(getProject().getLayout().getBuildDirectory().dir(getName()).map(s -> s.file("output.zip")));
+        javadocs = getProject().getObjects().property(Boolean.class);
+        lambdas = getProject().getObjects().property(Boolean.class);
+    }
 
     @TaskAction
     public void apply() throws IOException {
-        McpNames names = McpNames.load(getMappings());
+        McpNames names = McpNames.load(mappings.get().getAsFile());
 
-        try (ZipFile zin = new ZipFile(getInput())) {
-            try (FileOutputStream fos = new FileOutputStream(getOutput());
+        try (ZipFile zin = new ZipFile(input.get().getAsFile())) {
+            try (FileOutputStream fos = new FileOutputStream(output.get().getAsFile());
                  ZipOutputStream out = new ZipOutputStream(fos)) {
                 zin.stream().forEach(e -> {
                     try {
@@ -57,7 +67,7 @@ public class ApplyMappings extends DefaultTask {
                         if (!e.getName().endsWith(".java")) {
                             IOUtils.copy(zin.getInputStream(e), out);
                         } else {
-                            out.write(names.rename(zin.getInputStream(e), getJavadocs(), getLambdas()).getBytes(StandardCharsets.UTF_8));
+                            out.write(names.rename(zin.getInputStream(e), javadocs.get(), lambdas.get()).getBytes(StandardCharsets.UTF_8));
                         }
                         out.closeEntry();
                     } catch (IOException e1) {
@@ -68,48 +78,28 @@ public class ApplyMappings extends DefaultTask {
         }
     }
 
+    @InputFile
+    public RegularFileProperty getInput() {
+        return this.input;
+    }
+
+    @InputFile
+    public RegularFileProperty getMappings() {
+        return this.mappings;
+    }
+
+    @OutputFile
+    public RegularFileProperty getOutput() {
+        return this.output;
+    }
+
     @Input
-    public boolean getJavadocs() {
+    public Property<Boolean> getJavadocs() {
         return this.javadocs;
     }
 
     @Input
-    public boolean getLambdas() {
+    public Property<Boolean> getLambdas() {
         return this.lambdas;
-    }
-
-    @InputFile
-    public File getInput() {
-        return input;
-    }
-
-    @InputFile
-    public File getMappings() {
-        return mappings;
-    }
-
-    @OutputFile
-    public File getOutput() {
-        return output;
-    }
-
-    public void setJavadocs(boolean value) {
-        this.javadocs = value;
-    }
-
-    public void setLambdas(boolean value) {
-        this.lambdas = value;
-    }
-
-    public void setInput(File clean) {
-        input = clean;
-    }
-
-    public void setMappings(File value) {
-        mappings = value;
-    }
-
-    public void setOutput(File value) {
-        output = value;
     }
 }

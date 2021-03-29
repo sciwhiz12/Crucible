@@ -227,13 +227,13 @@ public class PatcherPlugin implements Plugin<Project> {
         });
         toMCPConfig.configure(task -> {
             task.dependsOn(dlMappingsConfig, applyPatches);
-            task.setInput(applyPatches.get().getOutput());
-            task.setMappings(dlMappingsConfig.get().getOutput());
-            task.setLambdas(false);
+            task.getInput().set(applyPatches.get().getOutput());
+            task.getMappings().set(dlMappingsConfig.get().getOutput());
+            task.getLambdas().set(false);
         });
         extractMapped.configure(task -> {
             task.dependsOn(toMCPConfig);
-            task.setZip(toMCPConfig.get().getOutput());
+            task.setZip(toMCPConfig.get().getOutput().get().getAsFile());
             task.setOutput(extension.getPatchedSrc().get().getAsFile());
         });
         extractRangeConfig.configure(task -> {
@@ -365,15 +365,15 @@ public class PatcherPlugin implements Plugin<Project> {
             TaskProvider<ApplyMappings> toMCPNew = project.getTasks().register(APPLY_NEW_MAPPINGS_TASK_NAME, ApplyMappings.class);
             toMCPNew.configure(task -> {
                 task.dependsOn(dlMappingsNew.get(), applyRangeConfig.get());
-                task.setInput(applyRangeConfig.get().getOutput());
-                task.setMappings(dlMappingsConfig.get().getOutput());
-                task.setLambdas(false);
+                task.getInput().set(applyRangeConfig.get().getOutput());
+                task.getMappings().set(dlMappingsConfig.get().getOutput());
+                task.getLambdas().set(false);
             });
 
             TaskProvider<ExtractExistingFiles> extractMappedNew = project.getTasks().register(EXTRACT_NEW_MAPPED_TASK_NAME, ExtractExistingFiles.class);
             extractMappedNew.configure(task -> {
                 task.dependsOn(toMCPNew.get());
-                task.setArchive(toMCPNew.get().getOutput());
+                task.setArchive(toMCPNew.get().getOutput().get().getAsFile());
             });
 
             TaskProvider<DefaultTask> updateMappings = project.getTasks().register(UPDATE_MAPPINGS_TASK_NAME, DefaultTask.class);
@@ -698,9 +698,9 @@ public class PatcherPlugin implements Plugin<Project> {
                 //Remap the 'clean' with out mappings.
                 ApplyMappings toMCPClean = project.getTasks().register(APPLY_MAPPINGS_CLEAN_TASK_NAME, ApplyMappings.class).get();
                 toMCPClean.dependsOn(dlMappingsConfig, Lists.newArrayList(applyPatches.get().getDependsOn()));
-                toMCPClean.setInput(applyPatches.get().getBase());
-                toMCPClean.setMappings(dlMappingsConfig.get().getOutput());
-                toMCPClean.setLambdas(false);
+                toMCPClean.getInput().set(applyPatches.get().getBase());
+                toMCPClean.getMappings().set(dlMappingsConfig.get().getOutput());
+                toMCPClean.getLambdas().set(false);
 
                 //Zip up the current working folder as genPatches takes a zip
                 Zip dirtyZip = project.getTasks().register(PATCHED_ZIP_TASK_NAME, Zip.class).get();
@@ -710,9 +710,9 @@ public class PatcherPlugin implements Plugin<Project> {
 
                 //Fixup the inputs.
                 applyPatches.get().setDependsOn(Lists.newArrayList(toMCPClean));
-                applyPatches.get().setBase(toMCPClean.getOutput());
+                applyPatches.get().setBase(toMCPClean.getOutput().get().getAsFile());
                 genPatches.get().setDependsOn(Lists.newArrayList(toMCPClean, dirtyZip));
-                genPatches.get().setBase(toMCPClean.getOutput());
+                genPatches.get().setBase(toMCPClean.getOutput().get().getAsFile());
                 genPatches.get().setModified(dirtyZip.getArchivePath());
             }
 

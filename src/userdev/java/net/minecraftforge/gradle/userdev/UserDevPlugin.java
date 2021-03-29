@@ -221,13 +221,13 @@ public class UserDevPlugin implements Plugin<Project> {
 
             toMCPNew.configure(task -> {
                 task.dependsOn(dlMappingsNew, applyRangeConfig);
-                task.setInput(applyRangeConfig.get().getOutput());
-                task.setMappings(dlMappingsNew.get().getOutput());
+                task.getInput().set(applyRangeConfig.get().getOutput());
+                task.getOutput().set(dlMappingsNew.get().getOutput());
             });
 
             extractMappedNew.configure(task -> {
                 task.dependsOn(toMCPNew);
-                task.setArchive(toMCPNew.get().getOutput());
+                task.setArchive(toMCPNew.get().getOutput().get().getAsFile());
                 srcDirs.forEach(task::addTarget);
             });
 
