@@ -226,9 +226,8 @@ public class UserDevPlugin implements Plugin<Project> {
             });
 
             extractMappedNew.configure(task -> {
-                task.dependsOn(toMCPNew);
-                task.setArchive(toMCPNew.get().getOutput().get().getAsFile());
-                srcDirs.forEach(task::addTarget);
+                task.getArchive().set(toMCPNew.flatMap(ApplyMappings::getOutput));
+                srcDirs.forEach(task.getTargets()::from);
             });
 
             TaskProvider<DefaultTask> updateMappings = project.getTasks().register(UPDATE_MAPPINGS_TASK_NAME, DefaultTask.class);

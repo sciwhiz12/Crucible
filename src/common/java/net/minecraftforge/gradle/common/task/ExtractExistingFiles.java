@@ -23,24 +23,30 @@ package net.minecraftforge.gradle.common.task;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Enumeration;
-import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 import org.apache.commons.io.IOUtils;
 import org.gradle.api.DefaultTask;
+import org.gradle.api.file.ConfigurableFileCollection;
+import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.tasks.InputFile;
+import org.gradle.api.tasks.OutputDirectories;
 import org.gradle.api.tasks.TaskAction;
 
 public class ExtractExistingFiles extends DefaultTask {
-    private File archive;
-    private List<File> targets = new ArrayList<>();
+    private final RegularFileProperty archive;
+    private final ConfigurableFileCollection targets;
+
+    public ExtractExistingFiles() {
+        this.archive = getProject().getObjects().fileProperty();
+        this.targets = getProject().getObjects().fileCollection();
+    }
 
     @TaskAction
     public void run() throws IOException {
-        try (ZipFile zip = new ZipFile(getArchive())) {
+        try (ZipFile zip = new ZipFile(archive.get().getAsFile())) {
             Enumeration<? extends ZipEntry> enu = zip.entries();
             while (enu.hasMoreElements()) {
                 ZipEntry e = enu.nextElement();
@@ -58,14 +64,12 @@ public class ExtractExistingFiles extends DefaultTask {
     }
 
     @InputFile
-    public File getArchive() {
+    public RegularFileProperty getArchive() {
         return this.archive;
     }
-    public void setArchive(File value) {
-        this.archive = value;
-    }
 
-    public void addTarget(File value) {
-        this.targets.add(value);
+    @OutputDirectories
+    public ConfigurableFileCollection getTargets() {
+        return this.targets;
     }
 }

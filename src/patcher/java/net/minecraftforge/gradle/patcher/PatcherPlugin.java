@@ -372,8 +372,7 @@ public class PatcherPlugin implements Plugin<Project> {
 
             TaskProvider<ExtractExistingFiles> extractMappedNew = project.getTasks().register(EXTRACT_NEW_MAPPED_TASK_NAME, ExtractExistingFiles.class);
             extractMappedNew.configure(task -> {
-                task.dependsOn(toMCPNew.get());
-                task.setArchive(toMCPNew.get().getOutput().get().getAsFile());
+                task.getArchive().set(toMCPNew.flatMap(ApplyMappings::getOutput));
             });
 
             TaskProvider<DefaultTask> updateMappings = project.getTasks().register(UPDATE_MAPPINGS_TASK_NAME, DefaultTask.class);
@@ -394,7 +393,7 @@ public class PatcherPlugin implements Plugin<Project> {
                 for (File dir : mainSource.getJava().getSrcDirs()) {
                     if (dir.equals(extension.getPatchedSrc().get().getAsFile())) //Don't overwrite the patched code, re-setup the project.
                         continue;
-                    extract.addTarget(dir);
+                    extract.getTargets().from(dir);
                 }
             }
 
