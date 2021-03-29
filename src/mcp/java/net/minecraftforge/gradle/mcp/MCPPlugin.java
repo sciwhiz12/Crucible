@@ -20,6 +20,7 @@
 
 package net.minecraftforge.gradle.mcp;
 
+import net.minecraftforge.gradle.common.FGBasePlugin;
 import net.minecraftforge.gradle.common.util.Utils;
 import net.minecraftforge.gradle.mcp.task.DownloadMCPConfig;
 import net.minecraftforge.gradle.mcp.task.SetupMCP;
@@ -34,6 +35,7 @@ public class MCPPlugin implements Plugin<Project> {
 
     @Override
     public void apply(@Nonnull Project project) {
+        project.getPlugins().apply(FGBasePlugin.class);
         MCPExtension extension = project.getExtensions().create("mcp", MCPExtension.class, project);
 
         TaskProvider<DownloadMCPConfig> downloadConfig = project.getTasks().register("downloadConfig", DownloadMCPConfig.class);
@@ -47,23 +49,6 @@ public class MCPPlugin implements Plugin<Project> {
             task.dependsOn(downloadConfig);
             task.setPipeline(extension.pipeline);
             task.setConfig(downloadConfig.get().getOutput());
-        });
-
-        project.afterEvaluate(p -> {
-            //Add Known repos
-            project.getRepositories().maven(e -> {
-                e.setUrl(Utils.MOJANG_MAVEN);
-                e.metadataSources(MetadataSources::artifact);
-            });
-            project.getRepositories().maven(e -> {
-                e.setUrl(Utils.FORGE_MAVEN);
-                e.metadataSources(m -> {
-                    m.gradleMetadata();
-                    m.mavenPom();
-                    m.artifact();
-                });
-            });
-            project.getRepositories().mavenCentral(); //Needed for MCP Deps
         });
     }
 }

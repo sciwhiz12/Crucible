@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+import net.minecraftforge.gradle.common.FGBasePlugin;
 import net.minecraftforge.gradle.common.task.ApplyMappings;
 import net.minecraftforge.gradle.common.task.ApplyRangeMap;
 import net.minecraftforge.gradle.common.task.DownloadAssets;
@@ -71,7 +72,7 @@ public class UserDevPlugin implements Plugin<Project> {
 
     @Override
     public void apply(@Nonnull Project project) {
-        Utils.checkEnvironment();
+        project.getPlugins().apply(FGBasePlugin.class);
 
         @SuppressWarnings("unused")
         final Logger logger = project.getLogger();
@@ -231,15 +232,6 @@ public class UserDevPlugin implements Plugin<Project> {
                 minecraft.getDependencies().add(ext);
             }
 
-            project.getRepositories().maven(e -> {
-                e.setUrl(Utils.FORGE_MAVEN);
-                e.metadataSources(m -> {
-                    m.gradleMetadata();
-                    m.mavenPom();
-                    m.artifact();
-                });
-            });
-
             if (!internalObfConfiguration.getDependencies().isEmpty()) {
                 deobfrepo = new DeobfuscatingRepo(project, internalObfConfiguration, deobfuscator);
                 if (deobfrepo.getResolvedOrigin() == null) {
@@ -258,11 +250,6 @@ public class UserDevPlugin implements Plugin<Project> {
 
             MojangLicenseHelper.displayWarning(p, extension.getMappingChannel(), extension.getMappingVersion(), updateChannel, updateVersion);
 
-            project.getRepositories().maven(e -> {
-                e.setUrl(Utils.MOJANG_MAVEN);
-                e.metadataSources(MetadataSources::artifact);
-            });
-            project.getRepositories().mavenCentral(); //Needed for MCP Deps
             if (mcrepo == null)
                 throw new IllegalStateException("Missing 'minecraft' dependency entry.");
             mcrepo.validate(minecraft, extension.getRuns().getAsMap(), extractNatives.get(), downloadAssets.get(), createSrgToMcp.get()); //This will set the MC_VERSION property.

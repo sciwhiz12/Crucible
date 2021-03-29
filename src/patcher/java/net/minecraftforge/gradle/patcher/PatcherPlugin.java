@@ -22,6 +22,8 @@ package net.minecraftforge.gradle.patcher;
 
 import codechicken.diffpatch.util.PatchMode;
 import com.google.common.collect.Lists;
+
+import net.minecraftforge.gradle.common.FGBasePlugin;
 import net.minecraftforge.gradle.common.task.DownloadAssets;
 import net.minecraftforge.gradle.common.task.DownloadMCMeta;
 import net.minecraftforge.gradle.common.task.DynamicJarExec;
@@ -84,7 +86,7 @@ public class PatcherPlugin implements Plugin<Project> {
 
     @Override
     public void apply(@Nonnull Project project) {
-        Utils.checkEnvironment();
+        project.getPlugins().apply(FGBasePlugin.class);
 
         final PatcherExtension extension = project.getExtensions().create(PatcherExtension.class, PatcherExtension.EXTENSION_NAME, PatcherExtension.class, project);
         if (project.getPluginManager().findPlugin("java") == null) {
@@ -130,23 +132,10 @@ public class PatcherPlugin implements Plugin<Project> {
         TaskProvider<DefaultTask> hideLicense = project.getTasks().register(MojangLicenseHelper.HIDE_LICENSE, DefaultTask.class);
         TaskProvider<DefaultTask> showLicense = project.getTasks().register(MojangLicenseHelper.SHOW_LICENSE, DefaultTask.class);
 
-        //Add Known repos
-        project.getRepositories().maven(e -> {
-            e.setUrl(Utils.FORGE_MAVEN);
-            e.metadataSources(m -> {
-                m.gradleMetadata();
-                m.mavenPom();
-                m.artifact();
-            });
-        });
         new BaseRepo.Builder()
             .add(MCPRepo.create(project))
             .add(MinecraftRepo.create(project))
             .attach(project);
-        project.getRepositories().maven(e -> {
-            e.setUrl(Utils.MOJANG_MAVEN);
-            e.metadataSources(MetadataSources::artifact);
-        });
 
         hideLicense.configure(task -> {
             task.doLast(_task -> {
