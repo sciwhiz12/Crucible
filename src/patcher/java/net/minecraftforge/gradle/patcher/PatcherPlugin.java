@@ -63,7 +63,6 @@ import org.gradle.api.DefaultTask;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
-import org.gradle.api.artifacts.repositories.MavenArtifactRepository.MetadataSources;
 import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.plugins.JavaPluginConvention;
 import org.gradle.api.tasks.SourceSet;
@@ -83,7 +82,56 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 public class PatcherPlugin implements Plugin<Project> {
-    private static final String MC_DEP_CONFIG = "minecraftImplementation";
+    public static final String MINECRAFT_IMPLEMENTATION_CONFIGURATION_NAME = "minecraftImplementation";
+
+    // Used to set the rejects output for applyPatches, not related to updateMappings
+    public static final String UPDATING_PROPERTY = "UPDATING";
+
+    public static final String UPDATE_MAPPINGS_PROPERTY = "UPDATE_MAPPINGS";
+    public static final String UPDATE_MAPPINGS_CHANNEL_PROPERTY = "UPDATE_MAPPINGS_CHANNEL";
+    private static final String DEFAULT_UPDATE_MAPPINGS_CHANNEL = "snapshot";
+
+    // Normal patcher tasks
+    public static final String DOWNLOAD_MAPPINGS_TASK_NAME = "downloadMappings";
+    public static final String DOWNLOAD_MC_META_TASK_NAME = "downloadMCMeta";
+    public static final String EXTRACT_NATIVES_TASK_NAME = "extractNatives";
+    public static final String APPLY_PATCHES_TASK_NAME = "applyPatches";
+    public static final String APPLY_MAPPINGS_TASK_NAME = "srg2mcp";
+    public static final String EXTRACT_MAPPED_TASK_NAME = "extractMapped";
+    public static final String CREATE_MCP_TO_SRG_TASK_NAME = "createMcp2Srg";
+    public static final String CREATE_MCP_TO_OBF_TASK_NAME = "createMcp2Obf";
+    public static final String CREATE_SRG_TO_MCP_TASK_NAME = "createSrg2Mcp";
+    public static final String CREATE_EXC_TASK_NAME = "createExc";
+    public static final String EXTRACT_RANGE_MAP_TASK_NAME = "extractRangeMap";
+    public static final String APPLY_RANGE_MAP_TASK_NAME = "applyRangeMap";
+    public static final String APPLY_RANGE_MAP_BASE_TASK_NAME = "applyRangeMapBase";
+    public static final String GENERATE_PATCHES_TASK_NAME = "genPatches";
+    public static final String BAKE_PATCHES_TASK_NAME = "bakePatches";
+    public static final String DOWNLOAD_ASSETS_TASK_NAME = "downloadAssets";
+    public static final String REOBFUSCATE_JAR_TASK_NAME = "reobfJar";
+    public static final String GENERATE_JOINED_BIN_PATCHES_TASK_NAME = "genJoinedBinPatches";
+    public static final String GENERATE_CLIENT_BIN_PATCHES_TASK_NAME = "genClientBinPatches";
+    public static final String GENERATE_SERVER_BIN_PATCHES_TASK_NAME = "genServerBinPatches";
+    public static final String GENERATE_BIN_PATCHES_TASK_NAME = "genBinPatches";
+    public static final String FILTER_NEW_JAR_TASK_NAME = "filterJarNew";
+    public static final String SOURCES_JAR_TASK_NAME = "sourcesJar";
+    public static final String UNIVERSAL_JAR_TASK_NAME = "universalJar";
+    public static final String USERDEV_JAR_TASK_NAME = "userdevJar";
+    public static final String GENERATE_USERDEV_CONFIG_TASK_NAME = "userdevConfig";
+    public static final String RELEASE_TASK_NAME = "release";
+
+    public static final String EXTRACT_SRG_TASK_NAME = "extractSrg";
+    public static final String EXTRACT_STATIC_TASK_NAME = "extractStatic";
+    public static final String EXTRACT_CONSTRUCTORS_TASK_NAME = "extractConstructors";
+    public static final String CREATE_FAKE_SAS_PATCHES_TASK_NAME = "createFakeSASPatches";
+    public static final String APPLY_MAPPINGS_CLEAN_TASK_NAME = "srg2mcpClean";
+    public static final String PATCHED_ZIP_TASK_NAME = "patchedZip";
+
+    // updateMappings tasks
+    public static final String DOWNLOAD_NEW_MAPPINGS_TASK_NAME = "downloadMappingsNew";
+    public static final String APPLY_NEW_MAPPINGS_TASK_NAME = "srg2mcpNew";
+    public static final String EXTRACT_NEW_MAPPED_TASK_NAME = "extractMappedNew";
+    public static final String UPDATE_MAPPINGS_TASK_NAME = "updateMappings";
 
     @Override
     public void apply(@Nonnull Project project) {
@@ -96,42 +144,42 @@ public class PatcherPlugin implements Plugin<Project> {
         final JavaPluginConvention javaConv = (JavaPluginConvention) project.getConvention().getPlugins().get("java");
         final File natives_folder = project.file("build/natives/");
 
-        Configuration mcImplementation = project.getConfigurations().maybeCreate(MC_DEP_CONFIG);
+        Configuration mcImplementation = project.getConfigurations().maybeCreate(MINECRAFT_IMPLEMENTATION_CONFIGURATION_NAME);
         mcImplementation.setCanBeResolved(true);
         project.getConfigurations().getByName(JavaPlugin.IMPLEMENTATION_CONFIGURATION_NAME).extendsFrom(mcImplementation);
 
         Jar jarConfig = (Jar) project.getTasks().getByName(JavaPlugin.JAR_TASK_NAME);
         JavaCompile javaCompile = (JavaCompile) project.getTasks().getByName(JavaPlugin.COMPILE_JAVA_TASK_NAME);
 
-        TaskProvider<DownloadMCPMappings> dlMappingsConfig = project.getTasks().register("downloadMappings", DownloadMCPMappings.class);
-        TaskProvider<DownloadMCMeta> dlMCMetaConfig = project.getTasks().register("downloadMCMeta", DownloadMCMeta.class);
-        TaskProvider<ExtractNatives> extractNatives = project.getTasks().register("extractNatives", ExtractNatives.class);
-        TaskProvider<ApplyPatches> applyPatches = project.getTasks().register("applyPatches", ApplyPatches.class);
-        TaskProvider<ApplyMappings> toMCPConfig = project.getTasks().register("srg2mcp", ApplyMappings.class);
-        TaskProvider<ExtractZip> extractMapped = project.getTasks().register("extractMapped", ExtractZip.class);
-        TaskProvider<GenerateSRG> createMcp2Srg = project.getTasks().register("createMcp2Srg", GenerateSRG.class);
-        TaskProvider<GenerateSRG> createMcp2Obf = project.getTasks().register("createMcp2Obf", GenerateSRG.class);
-        TaskProvider<GenerateSRG> createSrg2Mcp = project.getTasks().register("createSrg2Mcp", GenerateSRG.class);
-        TaskProvider<CreateExc> createExc = project.getTasks().register("createExc", CreateExc.class);
-        TaskProvider<ExtractRangeMap> extractRangeConfig = project.getTasks().register("extractRangeMap", ExtractRangeMap.class);
-        TaskProvider<ApplyRangeMap> applyRangeConfig = project.getTasks().register("applyRangeMap", ApplyRangeMap.class);
-        TaskProvider<ApplyRangeMap> applyRangeBaseConfig = project.getTasks().register("applyRangeMapBase", ApplyRangeMap.class);
-        TaskProvider<GeneratePatches> genPatches = project.getTasks().register("genPatches", GeneratePatches.class);
-        TaskProvider<BakePatches> bakePatches = project.getTasks().register("bakePatches", BakePatches.class);
-        TaskProvider<DownloadAssets> downloadAssets = project.getTasks().register("downloadAssets", DownloadAssets.class);
-        TaskProvider<ReobfuscateJar> reobfJar = project.getTasks().register("reobfJar", ReobfuscateJar.class);
-        TaskProvider<GenerateBinPatches> genJoinedBinPatches = project.getTasks().register("genJoinedBinPatches", GenerateBinPatches.class);
-        TaskProvider<GenerateBinPatches> genClientBinPatches = project.getTasks().register("genClientBinPatches", GenerateBinPatches.class);
-        TaskProvider<GenerateBinPatches> genServerBinPatches = project.getTasks().register("genServerBinPatches", GenerateBinPatches.class);
-        TaskProvider<DefaultTask> genBinPatches = project.getTasks().register("genBinPatches", DefaultTask.class);
-        TaskProvider<FilterNewJar> filterNew = project.getTasks().register("filterJarNew", FilterNewJar.class);
-        TaskProvider<Jar> sourcesJar = project.getTasks().register("sourcesJar", Jar.class);
-        TaskProvider<Jar> universalJar = project.getTasks().register("universalJar", Jar.class);
-        TaskProvider<Jar> userdevJar = project.getTasks().register("userdevJar", Jar.class);
-        TaskProvider<GenerateUserdevConfig> userdevConfig = project.getTasks().register("userdevConfig", GenerateUserdevConfig.class, project);
-        TaskProvider<DefaultTask> release = project.getTasks().register("release", DefaultTask.class);
-        TaskProvider<DefaultTask> hideLicense = project.getTasks().register(MojangLicenseHelper.HIDE_LICENSE, DefaultTask.class);
-        TaskProvider<DefaultTask> showLicense = project.getTasks().register(MojangLicenseHelper.SHOW_LICENSE, DefaultTask.class);
+        TaskProvider<DownloadMCPMappings> dlMappingsConfig = project.getTasks().register(DOWNLOAD_MAPPINGS_TASK_NAME, DownloadMCPMappings.class);
+        TaskProvider<DownloadMCMeta> dlMCMetaConfig = project.getTasks().register(DOWNLOAD_MC_META_TASK_NAME, DownloadMCMeta.class);
+        TaskProvider<ExtractNatives> extractNatives = project.getTasks().register(EXTRACT_NATIVES_TASK_NAME, ExtractNatives.class);
+        TaskProvider<ApplyPatches> applyPatches = project.getTasks().register(APPLY_PATCHES_TASK_NAME, ApplyPatches.class);
+        TaskProvider<ApplyMappings> toMCPConfig = project.getTasks().register(APPLY_MAPPINGS_TASK_NAME, ApplyMappings.class);
+        TaskProvider<ExtractZip> extractMapped = project.getTasks().register(EXTRACT_MAPPED_TASK_NAME, ExtractZip.class);
+        TaskProvider<GenerateSRG> createMcp2Srg = project.getTasks().register(CREATE_MCP_TO_SRG_TASK_NAME, GenerateSRG.class);
+        TaskProvider<GenerateSRG> createMcp2Obf = project.getTasks().register(CREATE_MCP_TO_OBF_TASK_NAME, GenerateSRG.class);
+        TaskProvider<GenerateSRG> createSrg2Mcp = project.getTasks().register(CREATE_SRG_TO_MCP_TASK_NAME, GenerateSRG.class);
+        TaskProvider<CreateExc> createExc = project.getTasks().register(CREATE_EXC_TASK_NAME, CreateExc.class);
+        TaskProvider<ExtractRangeMap> extractRangeConfig = project.getTasks().register(EXTRACT_RANGE_MAP_TASK_NAME, ExtractRangeMap.class);
+        TaskProvider<ApplyRangeMap> applyRangeConfig = project.getTasks().register(APPLY_RANGE_MAP_TASK_NAME, ApplyRangeMap.class);
+        TaskProvider<ApplyRangeMap> applyRangeBaseConfig = project.getTasks().register(APPLY_RANGE_MAP_BASE_TASK_NAME, ApplyRangeMap.class);
+        TaskProvider<GeneratePatches> genPatches = project.getTasks().register(GENERATE_PATCHES_TASK_NAME, GeneratePatches.class);
+        TaskProvider<BakePatches> bakePatches = project.getTasks().register(BAKE_PATCHES_TASK_NAME, BakePatches.class);
+        TaskProvider<DownloadAssets> downloadAssets = project.getTasks().register(DOWNLOAD_ASSETS_TASK_NAME, DownloadAssets.class);
+        TaskProvider<ReobfuscateJar> reobfJar = project.getTasks().register(REOBFUSCATE_JAR_TASK_NAME, ReobfuscateJar.class);
+        TaskProvider<GenerateBinPatches> genJoinedBinPatches = project.getTasks().register(GENERATE_JOINED_BIN_PATCHES_TASK_NAME, GenerateBinPatches.class);
+        TaskProvider<GenerateBinPatches> genClientBinPatches = project.getTasks().register(GENERATE_CLIENT_BIN_PATCHES_TASK_NAME, GenerateBinPatches.class);
+        TaskProvider<GenerateBinPatches> genServerBinPatches = project.getTasks().register(GENERATE_SERVER_BIN_PATCHES_TASK_NAME, GenerateBinPatches.class);
+        TaskProvider<DefaultTask> genBinPatches = project.getTasks().register(GENERATE_BIN_PATCHES_TASK_NAME, DefaultTask.class);
+        TaskProvider<FilterNewJar> filterNew = project.getTasks().register(FILTER_NEW_JAR_TASK_NAME, FilterNewJar.class);
+        TaskProvider<Jar> sourcesJar = project.getTasks().register(SOURCES_JAR_TASK_NAME, Jar.class);
+        TaskProvider<Jar> universalJar = project.getTasks().register(UNIVERSAL_JAR_TASK_NAME, Jar.class);
+        TaskProvider<Jar> userdevJar = project.getTasks().register(USERDEV_JAR_TASK_NAME, Jar.class);
+        TaskProvider<GenerateUserdevConfig> userdevConfig = project.getTasks().register(GENERATE_USERDEV_CONFIG_TASK_NAME, GenerateUserdevConfig.class, project);
+        TaskProvider<DefaultTask> release = project.getTasks().register(RELEASE_TASK_NAME, DefaultTask.class);
+        TaskProvider<DefaultTask> hideLicense = project.getTasks().register(MojangLicenseHelper.HIDE_LICENSE_TASK_NAME, DefaultTask.class);
+        TaskProvider<DefaultTask> showLicense = project.getTasks().register(MojangLicenseHelper.SHOW_LICENSE_TASK_NAME, DefaultTask.class);
 
         new BaseRepo.Builder()
             .add(MCPRepo.create(project))
@@ -170,7 +218,7 @@ public class PatcherPlugin implements Plugin<Project> {
             task.setRejects(project.file("build/" + task.getName() + "/rejects.zip"));
             task.setPatches(extension.patches);
             task.setPatchMode(PatchMode.ACCESS);
-            if (project.hasProperty("UPDATING")) {
+            if (project.hasProperty(UPDATING_PROPERTY)) {
                 task.setPatchMode(PatchMode.FUZZY);
                 task.setRejects(project.file("rejects/"));
                 task.setFailOnError(false);
@@ -233,7 +281,7 @@ public class PatcherPlugin implements Plugin<Project> {
         reobfJar.configure(task -> {
             task.dependsOn(jarConfig, dlMappingsConfig);
             task.setInput(jarConfig.getArchiveFile().get().getAsFile());
-            task.setClasspath(project.getConfigurations().getByName(MC_DEP_CONFIG));
+            task.setClasspath(project.getConfigurations().getByName(MINECRAFT_IMPLEMENTATION_CONFIGURATION_NAME));
         });
         genJoinedBinPatches.configure(task -> {
             task.dependsOn(reobfJar);
@@ -304,16 +352,16 @@ public class PatcherPlugin implements Plugin<Project> {
             task.getArchiveClassifier().set("userdev");
         });
 
-        final boolean doingUpdate = project.hasProperty("UPDATE_MAPPINGS");
-        final String updateVersion = doingUpdate ? (String)project.property("UPDATE_MAPPINGS") : null;
+        final boolean doingUpdate = project.hasProperty(UPDATE_MAPPINGS_PROPERTY);
+        final String updateVersion = doingUpdate ? (String)project.property(UPDATE_MAPPINGS_PROPERTY) : null;
         final String updateChannel = doingUpdate
-            ? (project.hasProperty("UPDATE_MAPPINGS_CHANNEL") ? (String)project.property("UPDATE_MAPPINGS_CHANNEL") : "snapshot")
+            ? (project.hasProperty(UPDATE_MAPPINGS_CHANNEL_PROPERTY) ? (String)project.property(UPDATE_MAPPINGS_CHANNEL_PROPERTY) : DEFAULT_UPDATE_MAPPINGS_CHANNEL)
             : null;
         if (doingUpdate) {
-            TaskProvider<DownloadMCPMappings> dlMappingsNew = project.getTasks().register("downloadMappingsNew", DownloadMCPMappings.class);
+            TaskProvider<DownloadMCPMappings> dlMappingsNew = project.getTasks().register(DOWNLOAD_NEW_MAPPINGS_TASK_NAME, DownloadMCPMappings.class);
             dlMappingsNew.get().setMappings(updateChannel + '_' + updateVersion);
 
-            TaskProvider<ApplyMappings> toMCPNew = project.getTasks().register("srg2mcpNew", ApplyMappings.class);
+            TaskProvider<ApplyMappings> toMCPNew = project.getTasks().register(APPLY_NEW_MAPPINGS_TASK_NAME, ApplyMappings.class);
             toMCPNew.configure(task -> {
                 task.dependsOn(dlMappingsNew.get(), applyRangeConfig.get());
                 task.setInput(applyRangeConfig.get().getOutput());
@@ -321,13 +369,13 @@ public class PatcherPlugin implements Plugin<Project> {
                 task.setLambdas(false);
             });
 
-            TaskProvider<ExtractExistingFiles> extractMappedNew = project.getTasks().register("extractMappedNew", ExtractExistingFiles.class);
+            TaskProvider<ExtractExistingFiles> extractMappedNew = project.getTasks().register(EXTRACT_NEW_MAPPED_TASK_NAME, ExtractExistingFiles.class);
             extractMappedNew.configure(task -> {
                 task.dependsOn(toMCPNew.get());
                 task.setArchive(toMCPNew.get().getOutput());
             });
 
-            TaskProvider<DefaultTask> updateMappings = project.getTasks().register("updateMappings", DefaultTask.class);
+            TaskProvider<DefaultTask> updateMappings = project.getTasks().register(UPDATE_MAPPINGS_TASK_NAME, DefaultTask.class);
             updateMappings.get().dependsOn(extractMappedNew.get());
         }
 
@@ -341,7 +389,7 @@ public class PatcherPlugin implements Plugin<Project> {
             });
 
             if (doingUpdate) {
-                ExtractExistingFiles extract = (ExtractExistingFiles)p.getTasks().getByName("extractMappedNew");
+                ExtractExistingFiles extract = (ExtractExistingFiles)p.getTasks().getByName(EXTRACT_NEW_MAPPED_TASK_NAME);
                 for (File dir : mainSource.getJava().getSrcDirs()) {
                     if (dir.equals(extension.patchedSrc)) //Don't overwrite the patched code, re-setup the project.
                         continue;
@@ -375,7 +423,7 @@ public class PatcherPlugin implements Plugin<Project> {
 
                 if (mcp != null) {
                     MojangLicenseHelper.displayWarning(p, extension.getMappingChannel(), extension.getMappingVersion(), updateChannel, updateVersion);
-                    SetupMCP setupMCP = (SetupMCP) tasks.getByName("setupMCP");
+                    SetupMCP setupMCP = (SetupMCP) tasks.getByName(MCPPlugin.SETUP_MCP_TASK_NAME);
 
                     if (procConfig != null) {
                         procConfig.get().dependsOn(setupMCP);
@@ -403,10 +451,10 @@ public class PatcherPlugin implements Plugin<Project> {
                         genPatches.get().setBase(extension.cleanSrc);
                     }
 
-                    DownloadMCPConfig dlMCP = (DownloadMCPConfig)tasks.getByName("downloadConfig");
+                    DownloadMCPConfig dlMCP = (DownloadMCPConfig)tasks.getByName(MCPPlugin.DOWNLOAD_MCPCONFIG_TASK_NAME);
 
                     if (createMcp2Srg.get().getSrg() == null) { //TODO: Make extractMCPData macro
-                        TaskProvider<ExtractMCPData> ext = project.getTasks().register("extractSrg", ExtractMCPData.class);
+                        TaskProvider<ExtractMCPData> ext = project.getTasks().register(EXTRACT_SRG_TASK_NAME, ExtractMCPData.class);
                         ext.get().dependsOn(dlMCP);
                         ext.get().setConfig(dlMCP.getOutput());
                         createMcp2Srg.get().setSrg(ext.get().getOutput());
@@ -419,7 +467,7 @@ public class PatcherPlugin implements Plugin<Project> {
                     }
 
                     if (createExc.get().getStatics() == null) {
-                        TaskProvider<ExtractMCPData> ext = project.getTasks().register("extractStatic", ExtractMCPData.class);
+                        TaskProvider<ExtractMCPData> ext = project.getTasks().register(EXTRACT_STATIC_TASK_NAME, ExtractMCPData.class);
                         ext.get().dependsOn(dlMCP);
                         ext.get().setConfig(dlMCP.getOutput());
                         ext.get().setKey("statics");
@@ -430,7 +478,7 @@ public class PatcherPlugin implements Plugin<Project> {
                     }
 
                     if (createExc.get().getConstructors() == null) {
-                        TaskProvider<ExtractMCPData> ext = project.getTasks().register("extractConstructors", ExtractMCPData.class);
+                        TaskProvider<ExtractMCPData> ext = project.getTasks().register(EXTRACT_CONSTRUCTORS_TASK_NAME, ExtractMCPData.class);
                         ext.get().dependsOn(dlMCP);
                         ext.get().setConfig(dlMCP.getOutput());
                         ext.get().setKey("constructors");
@@ -471,7 +519,7 @@ public class PatcherPlugin implements Plugin<Project> {
                     }
 
                     if (createMcp2Srg.get().getSrg() == null) {
-                        ExtractMCPData extract = ((ExtractMCPData)tasks.getByName("extractSrg"));
+                        ExtractMCPData extract = ((ExtractMCPData)tasks.getByName(EXTRACT_SRG_TASK_NAME));
                         if (extract != null) {
                             createMcp2Srg.get().setSrg(extract.getOutput());
                             createMcp2Srg.get().dependsOn(extract);
@@ -483,7 +531,7 @@ public class PatcherPlugin implements Plugin<Project> {
                     }
 
                     if (createExc.get().getSrg() == null) { //TODO: Make a macro for Srg/Static/Constructors
-                        ExtractMCPData extract = ((ExtractMCPData)tasks.getByName("extractSrg"));
+                        ExtractMCPData extract = ((ExtractMCPData)tasks.getByName(EXTRACT_SRG_TASK_NAME));
                         if (extract != null) {
                             createExc.get().setSrg(extract.getOutput());
                             createExc.get().dependsOn(extract);
@@ -494,7 +542,7 @@ public class PatcherPlugin implements Plugin<Project> {
                         }
                     }
                     if (createExc.get().getStatics() == null) {
-                        ExtractMCPData extract = ((ExtractMCPData) tasks.getByName("extractStatic"));
+                        ExtractMCPData extract = ((ExtractMCPData) tasks.getByName(EXTRACT_STATIC_TASK_NAME));
                         if (extract != null) {
                             createExc.get().setStatics(extract.getOutput());
                             createExc.get().dependsOn(extract);
@@ -505,7 +553,7 @@ public class PatcherPlugin implements Plugin<Project> {
                         }
                     }
                     if (createExc.get().getConstructors() == null) {
-                        ExtractMCPData extract = ((ExtractMCPData) tasks.getByName("extractConstructors"));
+                        ExtractMCPData extract = ((ExtractMCPData) tasks.getByName(EXTRACT_CONSTRUCTORS_TASK_NAME));
                         if (extract != null) {
                             createExc.get().setConstructors(extract.getOutput());
                             createExc.get().dependsOn(extract);
@@ -554,15 +602,15 @@ public class PatcherPlugin implements Plugin<Project> {
                 throw new IllegalStateException("Could not find MCP parent project, you must specify a parent chain to MCP.");
             }
             String mcp_version = mcp.getExtensions().findByType(MCPExtension.class).getConfig().getVersion();
-            project.getDependencies().add(MC_DEP_CONFIG, "net.minecraft:client:" + mcp_version + ":extra"); //Needs to be client extra, to get the data files.
-            project.getDependencies().add(MC_DEP_CONFIG, MCPRepo.getMappingDep(extension.getMappingChannel(), extension.getMappingVersion())); //Add mappings so that it can be used by reflection tools.
+            project.getDependencies().add(MINECRAFT_IMPLEMENTATION_CONFIGURATION_NAME, "net.minecraft:client:" + mcp_version + ":extra"); //Needs to be client extra, to get the data files.
+            project.getDependencies().add(MINECRAFT_IMPLEMENTATION_CONFIGURATION_NAME, MCPRepo.getMappingDep(extension.getMappingChannel(), extension.getMappingVersion())); //Add mappings so that it can be used by reflection tools.
 
             if (dlMCMetaConfig.get().getMCVersion() == null) {
                 dlMCMetaConfig.get().setMCVersion(extension.mcVersion);
             }
 
             if (!extension.getAccessTransformers().isEmpty()) {
-                SetupMCP setupMCP = (SetupMCP) mcp.getTasks().getByName("setupMCP");
+                SetupMCP setupMCP = (SetupMCP) mcp.getTasks().getByName(MCPPlugin.SETUP_MCP_TASK_NAME);
                 @SuppressWarnings("deprecation")
                 MCPFunction function = MCPFunctionFactory.createAT(mcp, extension.getAccessTransformers(), Collections.emptyList());
                 setupMCP.addPreDecompile(project.getName() + "AccessTransformer", function);
@@ -573,7 +621,7 @@ public class PatcherPlugin implements Plugin<Project> {
             }
 
             if (!extension.getSideAnnotationStrippers().isEmpty()) {
-                SetupMCP setupMCP = (SetupMCP) mcp.getTasks().getByName("setupMCP");
+                SetupMCP setupMCP = (SetupMCP) mcp.getTasks().getByName(MCPPlugin.SETUP_MCP_TASK_NAME);
                 @SuppressWarnings("deprecation")
                 MCPFunction function = MCPFunctionFactory.createSAS(mcp, extension.getSideAnnotationStrippers(), Collections.emptyList());
                 setupMCP.addPreDecompile(project.getName() + "SideStripper", function);
@@ -588,7 +636,7 @@ public class PatcherPlugin implements Plugin<Project> {
             while (ext != null) {
                 if (!ext.getSideAnnotationStrippers().isEmpty()) {
                     if (fakePatches == null)
-                        fakePatches = project.getTasks().register("createFakeSASPatches", CreateFakeSASPatches.class).get();
+                        fakePatches = project.getTasks().register(CREATE_FAKE_SAS_PATCHES_TASK_NAME, CreateFakeSASPatches.class).get();
                     ext.getSideAnnotationStrippers().forEach(fakePatches::addFile);
                 }
                 if (ext.parent != null)
@@ -646,14 +694,14 @@ public class PatcherPlugin implements Plugin<Project> {
                 genPatches.get().setModified(applyRangeBaseConfig.get().getOutput());
             } else {
                 //Remap the 'clean' with out mappings.
-                ApplyMappings toMCPClean = project.getTasks().register("srg2mcpClean", ApplyMappings.class).get();
+                ApplyMappings toMCPClean = project.getTasks().register(APPLY_MAPPINGS_CLEAN_TASK_NAME, ApplyMappings.class).get();
                 toMCPClean.dependsOn(dlMappingsConfig, Lists.newArrayList(applyPatches.get().getDependsOn()));
                 toMCPClean.setInput(applyPatches.get().getBase());
                 toMCPClean.setMappings(dlMappingsConfig.get().getOutput());
                 toMCPClean.setLambdas(false);
 
                 //Zip up the current working folder as genPatches takes a zip
-                Zip dirtyZip = project.getTasks().register("patchedZip", Zip.class).get();
+                Zip dirtyZip = project.getTasks().register(PATCHED_ZIP_TASK_NAME, Zip.class).get();
                 dirtyZip.from(extension.patchedSrc);
                 dirtyZip.getArchiveFileName().set("output.zip");
                 dirtyZip.getDestinationDirectory().set(project.file("build/" + dirtyZip.getName() + "/"));

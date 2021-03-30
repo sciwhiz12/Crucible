@@ -33,13 +33,16 @@ import javax.annotation.Nonnull;
 
 public class MCPPlugin implements Plugin<Project> {
 
+    public static final String DOWNLOAD_MCPCONFIG_TASK_NAME = "downloadConfig";
+    public static final String SETUP_MCP_TASK_NAME = "setupMCP";
+
     @Override
     public void apply(@Nonnull Project project) {
         project.getPlugins().apply(FGBasePlugin.class);
         MCPExtension extension = project.getExtensions().create(MCPExtension.EXTENSION_NAME, MCPExtension.class, project);
 
-        TaskProvider<DownloadMCPConfig> downloadConfig = project.getTasks().register("downloadConfig", DownloadMCPConfig.class);
-        TaskProvider<SetupMCP> setupMCP = project.getTasks().register("setupMCP", SetupMCP.class);
+        TaskProvider<DownloadMCPConfig> downloadConfig = project.getTasks().register(DOWNLOAD_MCPCONFIG_TASK_NAME, DownloadMCPConfig.class);
+        TaskProvider<SetupMCP> setupMCP = project.getTasks().register(SETUP_MCP_TASK_NAME, SetupMCP.class);
 
         downloadConfig.configure(task -> {
             task.setConfig(extension.getConfig().toString());

@@ -35,8 +35,8 @@ import org.gradle.api.Project;
 
 public class MojangLicenseHelper {
 
-    public static final String HIDE_LICENSE = "hideOfficialWarningUntilChanged";
-    public static final String SHOW_LICENSE = "reshowOfficialWarning";
+    public static final String HIDE_LICENSE_TASK_NAME = "hideOfficialWarningUntilChanged";
+    public static final String SHOW_LICENSE_TASK_NAME = "reshowOfficialWarning";
 
     /**
      * @see #displayWarning(Project, String, String) 
@@ -85,7 +85,7 @@ public class MojangLicenseHelper {
             String warning = "WARNING: These warnings will not be shown again until the license changes "
                 + "or the task `{TASK}` is run.";
 
-            project.getLogger().warn(warning.replace("{TASK}", SHOW_LICENSE));
+            project.getLogger().warn(warning.replace("{TASK}", SHOW_LICENSE_TASK_NAME));
         } catch (IOException exception) {
             project.getLogger().error("Could not accept Mojang license", exception);
         }
@@ -113,7 +113,7 @@ public class MojangLicenseHelper {
 
         return warning
             .replace("{REFER}", license != null ? "below" : "to the mapping file itself")
-            .replace("{TASK}", HIDE_LICENSE);
+            .replace("{TASK}", HIDE_LICENSE_TASK_NAME);
     }
 
     private static boolean isHidden(Project project, String hash) {

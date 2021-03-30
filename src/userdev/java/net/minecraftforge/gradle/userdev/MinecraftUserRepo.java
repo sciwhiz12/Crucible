@@ -109,6 +109,14 @@ import java.util.zip.ZipOutputStream;
 public class MinecraftUserRepo extends BaseRepo {
     public static final boolean CHANGING_USERDEV = false; //Used when testing to update the userdev cache every 30 seconds.
     private static final MinecraftVersion v1_13 = MinecraftVersion.from("1.13");
+    private static final String MCI_JAR_TASK_PREFIX = "mciJar";
+    private static final String ACCESS_TRANSFORM_JAR_TASK_PREFIX = "atJar";
+    private static final String RENAME_JAR_IN_PLACE_TASK_PREFIX = "renameJarInPlace";
+    private static final String RENAME_JAR = "renameJar";
+    private static final String RENAME_JAR_TASK_PREFIX = "renameJar";
+    private static final String APPLY_BINPATCHES_TASK_PREFIX = "applyBinpatches";
+    private static final String POST_PROCESS_TASK_PREFIX = "postProcess";
+    private static final String COMPILE_JAVA_TASK_PREFIX = "compileJava";
     private final Project project;
     private final String GROUP;
     private final String NAME;
@@ -578,7 +586,7 @@ public class MinecraftUserRepo extends BaseRepo {
 
             debug("    Applying MCInjector");
             //Apply MCInjector so we can compile against this jar
-            ApplyMCPFunction mci = createTask("mciJar", ApplyMCPFunction.class);
+            ApplyMCPFunction mci = createTask(MCI_JAR_TASK_PREFIX, ApplyMCPFunction.class);
             mci.setFunctionName("mcinject");
             mci.setHasLog(false);
             mci.setInput(srged);
@@ -661,7 +669,7 @@ public class MinecraftUserRepo extends BaseRepo {
                 if (bin.exists()) bin.delete(); // AT lib throws an exception if output file already exists
 
                 debug("    Applying Access Transformer");
-                AccessTransformJar at = createTask("atJar", AccessTransformJar.class);
+                AccessTransformJar at = createTask(ACCESS_TRANSFORM_JAR_TASK_PREFIX, AccessTransformJar.class);
                 at.setInput(injected);
                 at.setOutput(bin);
                 at.setAts(ATS);
@@ -682,7 +690,7 @@ public class MinecraftUserRepo extends BaseRepo {
             } else if (hasAts) {
                 debug("    Renaming ATed Jar in place");
                 //Remap library to MCP names, in place, sorta hacky with ATs but it should work.
-                RenameJarInPlace rename = createTask("renameJarInPlace", RenameJarInPlace.class);
+                RenameJarInPlace rename = createTask(RENAME_JAR_IN_PLACE_TASK_PREFIX, RenameJarInPlace.class);
                 rename.setHasLog(false);
                 rename.setInput(bin);
                 rename.setMappings(findSrgToMcp(mapping, names));
@@ -690,7 +698,7 @@ public class MinecraftUserRepo extends BaseRepo {
             } else {
                 debug("    Renaming injected jar");
                 //Remap library to MCP names
-                RenameJar rename = createTask("renameJar", RenameJar.class);
+                RenameJar rename = createTask(RENAME_JAR_TASK_PREFIX, RenameJar.class);
                 rename.setHasLog(false);
                 rename.setInput(injected);
                 rename.setOutput(bin);
@@ -758,7 +766,7 @@ public class MinecraftUserRepo extends BaseRepo {
 
             debug("    Creating Binpatches");
             //Apply bin patches to vanilla
-            ApplyBinPatches apply = createTask("applyBinpatches", ApplyBinPatches.class);
+            ApplyBinPatches apply = createTask(APPLY_BINPATCHES_TASK_PREFIX, ApplyBinPatches.class);
             apply.setHasLog(true);
             apply.setTool(parent.getConfig().binpatcher.getVersion());
             apply.setArgs(parent.getConfig().binpatcher.getArgs());
@@ -798,7 +806,7 @@ public class MinecraftUserRepo extends BaseRepo {
                 File srged = cacheRaw("srg", "jar");
                 debug("    Renaming injected jar");
                 //Remap to SRG names
-                RenameJar rename = createTask("renameJar", RenameJar.class);
+                RenameJar rename = createTask(RENAME_JAR_TASK_PREFIX, RenameJar.class);
                 rename.setHasLog(false);
                 rename.setInput(merged);
                 rename.setOutput(srged);
@@ -968,7 +976,7 @@ public class MinecraftUserRepo extends BaseRepo {
             File output = mcp.getStepOutput(isPatcher ? "joined" : NAME, null);
             if (parent != null && parent.getConfigV2() != null && parent.getConfigV2().processor != null) {
                 DataFunction data = parent.getConfigV2().processor;
-                DynamicJarExec proc = createTask("postProcess", DynamicJarExec.class);
+                DynamicJarExec proc = createTask(POST_PROCESS_TASK_PREFIX, DynamicJarExec.class);
                 proc.setInput(output);
                 proc.setOutput(decomp);
                 proc.setTool(data.getVersion());
@@ -1254,7 +1262,7 @@ public class MinecraftUserRepo extends BaseRepo {
 
     private int compileTaskCount = 1;
     private File compileJava(File source, File... extraDeps) {
-        HackyJavaCompile compile = createTask("compileJava", HackyJavaCompile.class);
+        HackyJavaCompile compile = createTask(COMPILE_JAVA_TASK_PREFIX, HackyJavaCompile.class);
         try {
             File output = project.file("build/" + compile.getName() + "/");
             if (output.exists()) {
