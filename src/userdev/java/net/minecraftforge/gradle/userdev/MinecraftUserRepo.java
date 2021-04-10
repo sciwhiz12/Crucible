@@ -768,8 +768,8 @@ public class MinecraftUserRepo extends BaseRepo {
             //Apply bin patches to vanilla
             ApplyBinPatches apply = createTask(APPLY_BINPATCHES_TASK_PREFIX, ApplyBinPatches.class);
             apply.setHasLog(true);
-            apply.setTool(parent.getConfig().binpatcher.getVersion());
-            apply.setArgs(parent.getConfig().binpatcher.getArgs());
+            apply.getTool().set(parent.getConfig().binpatcher.getVersion());
+            apply.getArgs().set(parent.getConfig().binpatcher.getArgs());
             apply.setClean(clean);
             apply.setPatch(findBinPatches());
             apply.setOutput(binpatched);
@@ -979,8 +979,8 @@ public class MinecraftUserRepo extends BaseRepo {
                 DynamicJarExec proc = createTask(POST_PROCESS_TASK_PREFIX, DynamicJarExec.class);
                 proc.setInput(output);
                 proc.setOutput(decomp);
-                proc.setTool(data.getVersion());
-                proc.setArgs(data.getArgs());
+                proc.getTool().set(data.getVersion());
+                proc.getArgs().set(data.getArgs());
 
                 if (data.getData() != null) {
                     File root = project.file("build/" + proc.getName());

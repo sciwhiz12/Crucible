@@ -33,7 +33,11 @@ import java.util.jar.JarFile;
 import java.util.stream.Collectors;
 
 import org.gradle.api.DefaultTask;
+import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.file.FileCollection;
+import org.gradle.api.provider.ListProperty;
+import org.gradle.api.provider.Property;
+import org.gradle.api.provider.Provider;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputFile;
 import org.gradle.api.tasks.InputFiles;
@@ -44,16 +48,28 @@ import net.minecraftforge.gradle.common.util.MavenArtifactDownloader;
 
 public class JarExec extends DefaultTask {
     private static final OutputStream NULL = new OutputStream() { @Override public void write(int b) throws IOException { } };
+
+    protected final Property<String> tool;
+    protected final ListProperty<String> args;
+    protected final ConfigurableFileCollection classpath;
     protected boolean hasLog = true;
-    protected String tool;
-    private File _tool;
-    protected String[] args;
-    protected FileCollection classpath = null;
+
+    private final Provider<File> toolFile;
+    private final Provider<String> resolvedVersion;
+
+    public JarExec() {
+        tool = getProject().getObjects().property(String.class);
+        toolFile = tool.map(toolStr -> MavenArtifactDownloader.gradle(getProject(), toolStr, false));
+        resolvedVersion = tool.map(toolStr -> MavenArtifactDownloader.getVersion(getProject(), toolStr));
+
+        args = getProject().getObjects().listProperty(String.class);
+        classpath = getProject().getObjects().fileCollection();
+    }
 
     @TaskAction
     public void apply() throws IOException {
 
-        File jar = getToolJar();
+        File jar = getToolJar().get();
 
         // Locate main class in jar file
         JarFile jarFile = new JarFile(jar);
@@ -71,7 +87,7 @@ public class JarExec extends DefaultTask {
             PrintWriter printer = new PrintWriter(log, true);
             getProject().javaexec(java -> {
                 // Execute command
-                java.setArgs(filterArgs(Arrays.asList(args)));
+                java.setArgs(filterArgs(args.get()));
                 printer.println("Args: " + java.getArgs().stream().map(m -> '"' + m +'"').collect(Collectors.joining(", ")));
                 if (getClasspath() == null)
                     java.setClasspath(getProject().files(jar));
@@ -113,7 +129,7 @@ public class JarExec extends DefaultTask {
     }
 
     public String getResolvedVersion() {
-        return MavenArtifactDownloader.getVersion(getProject(), getTool());
+        return resolvedVersion.get();
     }
 
     @Input
@@ -125,38 +141,23 @@ public class JarExec extends DefaultTask {
     }
 
     @InputFile
-    public File getToolJar() {
-        if (_tool == null)
-            _tool = MavenArtifactDownloader.gradle(getProject(), getTool(), false);
-        return _tool;
+    public Provider<File> getToolJar() {
+        return toolFile;
     }
 
     @Input
-    public String getTool() {
+    public Property<String> getTool() {
         return tool;
     }
 
-    public void setTool(String value) {
-        this.tool = value;
-    }
-
     @Input
-    public String[] getArgs() {
+    public ListProperty<String> getArgs() {
         return this.args;
-    }
-    public void setArgs(String[] value) {
-        this.args = value;
-    }
-    public void setArgs(List<String> value) {
-        setArgs(value.toArray(new String[value.size()]));
     }
 
     @Optional
     @InputFiles
-    public FileCollection getClasspath() {
+    public ConfigurableFileCollection getClasspath() {
         return this.classpath;
-    }
-    public void setClasspath(FileCollection value) {
-        this.classpath = value;
     }
 }

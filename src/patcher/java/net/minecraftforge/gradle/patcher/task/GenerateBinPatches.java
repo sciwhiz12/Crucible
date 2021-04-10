@@ -48,8 +48,8 @@ public class GenerateBinPatches extends JarExec {
     private Map<String, File> extras = new HashMap<>();
 
     public GenerateBinPatches() {
-        tool = Utils.BINPATCHER;
-        args = new String[] { "--clean", "{clean}", "--create", "{dirty}", "--output", "{output}", "--patches", "{patches}", "--srg", "{srg}"};
+        tool.set(Utils.BINPATCHER);
+        args.addAll("--clean", "{clean}", "--create", "{dirty}", "--output", "{output}", "--patches", "{patches}", "--srg", "{srg}");
     }
 
     @Override

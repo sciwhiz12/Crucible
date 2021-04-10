@@ -58,8 +58,8 @@ public class ApplyMCPFunction extends JarExec {
         MCPConfigV1 config = MCPConfigV2.getFromArchive(getMCP());
         MCPConfigV1.Function function = config.getFunction(functionName);
 
-        tool = function.getVersion();
-        args = function.getArgs().toArray(new String[0]);
+        tool.set(function.getVersion());
+        args.set(function.getArgs());
 
         try (ZipFile zip = new ZipFile(getMCP())) {
             function.getArgs().forEach(arg -> {

@@ -429,8 +429,8 @@ public class PatcherPlugin implements Plugin<Project> {
                     if (procConfig != null) {
                         procConfig.get().dependsOn(setupMCP);
                         procConfig.get().setInput(setupMCP.getOutput().get().getAsFile());
-                        procConfig.get().setTool(extension.getProcessor().getVersion());
-                        procConfig.get().setArgs(extension.getProcessor().getArgs());
+                        procConfig.get().getTool().set(extension.getProcessor().getVersion());
+                        procConfig.get().getArgs().set(extension.getProcessor().getArgs());
                         extension.getProcessorData().get().forEach((key, value) -> procConfig.get().setData(key, value));
                     }
 
@@ -491,8 +491,8 @@ public class PatcherPlugin implements Plugin<Project> {
                     if (procConfig != null) {
                         procConfig.get().dependsOn(parentApply);
                         procConfig.get().setInput(parentApply.getOutput().get().getAsFile());
-                        procConfig.get().setTool(extension.getProcessor().getVersion());
-                        procConfig.get().setArgs(extension.getProcessor().getArgs());
+                        procConfig.get().getTool().set(extension.getProcessor().getVersion());
+                        procConfig.get().getArgs().set(extension.getProcessor().getArgs());
                         extension.getProcessorData().get().forEach((key, value) -> procConfig.get().setData(key, value));
                     }
 

@@ -50,8 +50,8 @@ public class ApplyRangeMap extends JarExec {
     private File output = getProject().file("build/" + getName() + "/output.zip");
 
     public ApplyRangeMap() {
-        tool = Utils.SRG2SOURCE;
-        args = new String[] { "--apply", "--input", "{input}", "--range", "{range}", "--srg", "{srg}", "--exc", "{exc}", "--output", "{output}", "--keepImports", "{keepImports}"};
+        tool.set(Utils.SRG2SOURCE);
+        args.addAll("--apply", "--input", "{input}", "--range", "{range}", "--srg", "{srg}", "--exc", "{exc}", "--output", "{output}", "--keepImports", "{keepImports}");
     }
 
     @Override

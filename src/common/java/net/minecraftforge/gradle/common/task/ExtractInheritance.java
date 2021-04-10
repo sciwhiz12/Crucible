@@ -34,8 +34,8 @@ import net.minecraftforge.gradle.common.util.Utils;
 
 public class ExtractInheritance extends JarExec {
     public ExtractInheritance() {
-        tool = Utils.INSTALLERTOOLS;
-        args = new String[] { "--task", "extract_inheritance", "--input", "{input}", "--output", "{output}"};
+        tool.set(Utils.INSTALLERTOOLS);
+        args.addAll("--task", "extract_inheritance", "--input", "{input}", "--output", "{output}");
     }
     @Override
     protected List<String> filterArgs(List<String> args) {

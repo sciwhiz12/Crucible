@@ -41,8 +41,8 @@ public class RenameJarSrg2Mcp extends JarExec {
     private boolean signatureRemoval;
 
     public RenameJarSrg2Mcp() {
-        tool = Utils.INSTALLERTOOLS;
-        args = new String[] { "--task", "SRG_TO_MCP", "--input", "{input}", "--output", "{output}", "--mcp", "{mappings}", "{strip}"};
+        tool.set(Utils.INSTALLERTOOLS);
+        args.addAll("--task", "SRG_TO_MCP", "--input", "{input}", "--output", "{output}", "--mcp", "{mappings}", "{strip}");
     }
 
     @Override

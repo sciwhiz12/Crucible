@@ -26,7 +26,6 @@ import org.gradle.api.tasks.OutputFile;
 import net.minecraftforge.gradle.common.util.Utils;
 
 import java.io.File;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -39,8 +38,8 @@ public class ApplyBinPatches extends JarExec {
     private File output;
 
     public ApplyBinPatches() {
-        tool = Utils.BINPATCHER;
-        args = new String[] { "--clean", "{clean}", "--output", "{output}", "--apply", "{patch}"};
+        tool.set(Utils.BINPATCHER);
+        args.addAll("--clean", "{clean}", "--output", "{output}", "--apply", "{patch}");
     }
 
     @Override

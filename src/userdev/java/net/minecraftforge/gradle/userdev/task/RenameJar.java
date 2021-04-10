@@ -45,8 +45,8 @@ public class RenameJar extends JarExec {
     private List<Supplier<File>> extraMappings;
 
     public RenameJar() {
-        tool = Utils.SPECIALSOURCE;
-        args = new String[] { "--in-jar", "{input}", "--out-jar", "{output}", "--srg-in", "{mappings}"};
+        tool.set(Utils.SPECIALSOURCE);
+        args.addAll("--in-jar", "{input}", "--out-jar", "{output}", "--srg-in", "{mappings}");
     }
 
     @Override

@@ -41,8 +41,8 @@ public class AccessTransformJar extends JarExec {
     private List<File> ats;
 
     public AccessTransformJar() {
-        tool = Utils.ACCESSTRANSFORMER; // AT spec *should* be standardized, it has been for years. So we *shouldn't* need to configure this.
-        args = new String[] { "--inJar", "{input}", "--outJar", "{output}", "--logFile", "accesstransform.log"};
+        tool.set(Utils.ACCESSTRANSFORMER); // AT spec *should* be standardized, it has been for years. So we *shouldn't* need to configure this.
+        args.addAll("--inJar", "{input}", "--outJar", "{output}", "--logFile", "accesstransform.log");
     }
 
     @Override

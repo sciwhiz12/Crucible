@@ -47,8 +47,8 @@ public class RenameJarInPlace extends JarExec {
     private List<Supplier<File>> extraMappings;
 
     public RenameJarInPlace() {
-        tool = Utils.SPECIALSOURCE;
-        args = new String[] { "--in-jar", "{input}", "--out-jar", "{output}", "--srg-in", "{mappings}", "--live"};
+        tool.set(Utils.SPECIALSOURCE);
+        args.addAll("--in-jar", "{input}", "--out-jar", "{output}", "--srg-in", "{mappings}", "--live");
         this.getOutputs().upToDateWhen(task -> false);
     }
 

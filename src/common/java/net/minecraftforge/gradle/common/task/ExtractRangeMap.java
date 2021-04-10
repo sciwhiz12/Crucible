@@ -43,8 +43,8 @@ public class ExtractRangeMap extends JarExec {
     private boolean batch = true;
 
     public ExtractRangeMap() {
-        tool = Utils.SRG2SOURCE;
-        args = new String[] { "--extract", "--source-compatibility", "{compat}", "--output", "{output}", "--lib", "{library}", "--input", "{input}", "--batch", "{batched}"};
+        tool.set(Utils.SRG2SOURCE);
+        args.addAll("--extract", "--source-compatibility", "{compat}", "--output", "{output}", "--lib", "{library}", "--input", "{input}", "--batch", "{batched}");
     }
 
     @Override

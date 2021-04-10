@@ -321,7 +321,7 @@ public class UserDevPlugin implements Plugin<Project> {
             JavaPluginConvention java = (JavaPluginConvention) project.getConvention().getPlugins().get("java");
 
             final RenameJarInPlace task = project.getTasks().maybeCreate("reobf" + name, RenameJarInPlace.class);
-            task.setClasspath(java.getSourceSets().getByName(SourceSet.MAIN_SOURCE_SET_NAME).getCompileClasspath());
+            task.getClasspath().from(java.getSourceSets().getByName(SourceSet.MAIN_SOURCE_SET_NAME).getCompileClasspath());
 
             final Task createMcpToSrg = project.getTasks().findByName(CREATE_MCP_TO_SRG_TASK_NAME);
             if (createMcpToSrg != null) {
