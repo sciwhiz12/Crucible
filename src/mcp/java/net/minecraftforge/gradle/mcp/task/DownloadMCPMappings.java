@@ -25,6 +25,8 @@ import net.minecraftforge.gradle.mcp.MCPRepo;
 
 import org.apache.commons.io.FileUtils;
 import org.gradle.api.DefaultTask;
+import org.gradle.api.file.RegularFileProperty;
+import org.gradle.api.provider.Property;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.OutputFile;
 import org.gradle.api.tasks.TaskAction;
@@ -33,45 +35,43 @@ import java.io.File;
 import java.io.IOException;
 
 public class DownloadMCPMappings extends DefaultTask {
+    private final Property<String> mappings;
+    private final RegularFileProperty output;
 
-    private String mappings;
-
-    private File output = getProject().file("build/mappings.zip");
+    public DownloadMCPMappings() {
+        mappings = getProject().getObjects().property(String.class);
+        output = getProject().getObjects().fileProperty()
+                .convention(getProject().getLayout().getBuildDirectory().file("mappings.zip"));
+    }
 
     @Input
-    public String getMappings() {
+    public Property<String> getMappings() {
         return this.mappings;
     }
 
     @OutputFile
-    public File getOutput() {
+    public RegularFileProperty getOutput() {
         return output;
-    }
-
-    public void setMappings(String value) {
-        this.mappings = value;
-    }
-
-    public void setOutput(File output) {
-        this.output = output;
     }
 
     @TaskAction
     public void download() throws IOException {
         File out = getMappingFile();
-        this.setDidWork(out != null && out.exists());
+        File output = this.output.get().getAsFile();
+        this.setDidWork(out.exists());
         if (FileUtils.contentEquals(out, output)) return;
         if (output.exists()) output.delete();
-        if (!output.getParentFile().exists()) output.getParentFile().mkdirs();
+        if (output.getParentFile() != null && !output.getParentFile().exists()) output.getParentFile().mkdirs();
         FileUtils.copyFile(out, output);
     }
 
     private File getMappingFile() {
-        int idx = getMappings().lastIndexOf('_');
+        String mappings = this.mappings.get();
+        int idx = mappings.lastIndexOf('_');
         if (idx == -1)
             throw new IllegalArgumentException("Invalid mapping string format, must be {channel}_{version}.");
-        String channel = getMappings().substring(0, idx);
-        String version = getMappings().substring(idx + 1);
+        String channel = mappings.substring(0, idx);
+        String version = mappings.substring(idx + 1);
         String artifact = MCPRepo.getMappingDep(channel, version);
         File ret = MavenArtifactDownloader.generate(getProject(), artifact, false);
         if (ret == null)

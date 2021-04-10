@@ -27,6 +27,9 @@ import net.minecraftforge.gradle.mcp.function.MCPFunction;
 import net.minecraftforge.gradle.mcp.util.MCPRuntime;
 import org.apache.commons.io.FileUtils;
 import org.gradle.api.DefaultTask;
+import org.gradle.api.file.RegularFileProperty;
+import org.gradle.api.provider.MapProperty;
+import org.gradle.api.provider.Property;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputFile;
 import org.gradle.api.tasks.OutputFile;
@@ -34,26 +37,28 @@ import org.gradle.api.tasks.TaskAction;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.LinkedHashMap;
-import java.util.Map;
 
 public class SetupMCP extends DefaultTask {
-    private File config;
-    private String pipeline;
-
-    private Map<String, MCPFunction> extrasPre = new LinkedHashMap<>();
-
-    private File output = getProject().file("build/" + getName() + "/output.zip");
+    private final RegularFileProperty config;
+    private final Property<String> pipeline;
+    private final MapProperty<String, MCPFunction> extrasPre;
+    private final RegularFileProperty output;
 
     public SetupMCP() {
+        config = getProject().getObjects().fileProperty();
+        pipeline = getProject().getObjects().property(String.class);
+        extrasPre = getProject().getObjects().mapProperty(String.class, MCPFunction.class);
+        output = getProject().getObjects().fileProperty()
+                .convention(getProject().getLayout().getBuildDirectory().dir(getName()).map(d -> d.file("output.zip")));
+
         this.getOutputs().upToDateWhen(task -> {
             HashStore cache = new HashStore(getProject());
             try {
                 cache.load(getProject().file("build/" + getName() + "/inputcache.sha1"));
-                cache.add("configFile", config);
-                extrasPre.forEach((key, func) -> func.addInputs(cache, key + "."));
+                cache.add("configFile", config.get().getAsFile());
+                extrasPre.get().forEach((key, func) -> func.addInputs(cache, key + "."));
                 cache.save();
-                return cache.isSame() && getOutput().exists();
+                return cache.isSame() && output.get().getAsFile().exists();
             } catch (IOException e) {
                 e.printStackTrace();
                 return false;
@@ -62,41 +67,38 @@ public class SetupMCP extends DefaultTask {
     }
 
     @InputFile
-    public File getConfig() {
+    public RegularFileProperty getConfig() {
         return config;
-    }
-    public void setConfig(File value) {
-        this.config = value;
     }
 
     @Input
-    public String getPipeline() {
+    public Property<String> getPipeline() {
         return this.pipeline;
-    }
-    public void setPipeline(String value) {
-        this.pipeline = value;
     }
 
     @OutputFile
-    public File getOutput() {
+    public RegularFileProperty getOutput() {
         return output;
     }
 
-    public void setOutput(File output) {
-        this.output = output;
+    @Input
+    public MapProperty<String, MCPFunction> getPreDecompile() {
+        return extrasPre;
+    }
+    public void addPreDecompile(String name, MCPFunction function) {
+        this.extrasPre.put(name, function);
     }
 
     @TaskAction
     public void setupMCP() throws Exception {
+        File config = this.config.get().getAsFile();
+        File output = this.output.get().getAsFile();
+
         MCPConfigV2 mcpconfig = MCPConfigV2.getFromArchive(config);
-        MCPRuntime runtime = new MCPRuntime(getProject(), config, mcpconfig, getPipeline(), getProject().file("build/mcp/"), extrasPre);
+        MCPRuntime runtime = new MCPRuntime(getProject(), config, mcpconfig, pipeline.get(), getProject().file("build/mcp/"), extrasPre.get());
         File out = runtime.execute(getLogger());
         if (FileUtils.contentEquals(out, output)) return;
         Utils.delete(output);
         FileUtils.copyFile(out, output);
-    }
-
-    public void addPreDecompile(String name, MCPFunction function) {
-        this.extrasPre.put(name, function);
     }
 }

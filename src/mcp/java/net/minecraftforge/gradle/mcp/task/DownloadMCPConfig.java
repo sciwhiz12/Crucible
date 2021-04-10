@@ -23,6 +23,9 @@ package net.minecraftforge.gradle.mcp.task;
 import net.minecraftforge.gradle.common.util.MavenArtifactDownloader;
 import org.apache.commons.io.FileUtils;
 import org.gradle.api.DefaultTask;
+import org.gradle.api.file.RegularFileProperty;
+import org.gradle.api.provider.Property;
+import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputFile;
 import org.gradle.api.tasks.OutputFile;
 import org.gradle.api.tasks.TaskAction;
@@ -31,51 +34,48 @@ import java.io.File;
 import java.io.IOException;
 
 public class DownloadMCPConfig extends DefaultTask {
+    private final Property<String> config;
+    private final RegularFileProperty output;
 
-    private String config;
-    private File output;
+    public DownloadMCPConfig() {
+        config = getProject().getObjects().property(String.class);
+        output = getProject().getObjects().fileProperty();
+    }
 
     @TaskAction
     public void downloadMCPConfig() throws IOException {
         File file = getConfigFile();
+        File output = getOutput().get().getAsFile();
 
-        if (getOutput().exists()) {
-            if (FileUtils.contentEquals(file, getOutput())) {
+        if (output.exists()) {
+            if (FileUtils.contentEquals(file, output)) {
                 // NO-OP: The contents of both files are the same, we're up to date
                 setDidWork(false);
                 return;
             } else {
-                getOutput().delete();
+                output.delete();
             }
         }
-        FileUtils.copyFile(file, getOutput());
+        FileUtils.copyFile(file, output);
         setDidWork(true);
     }
 
-    public Object getConfig() {
+    @Input
+    public Property<String> getConfig() {
         return this.config;
     }
 
     @InputFile
     private File getConfigFile() {
-        return downloadConfigFile(config);
+        return downloadConfigFile(config.get());
     }
 
     @OutputFile
-    public File getOutput() {
-        return output;
-    }
-
-    public void setConfig(String value) {
-        this.config = value;
-    }
-
-    public void setOutput(File value) {
-        this.output = value;
+    public RegularFileProperty getOutput() {
+        return this.output;
     }
 
     private File downloadConfigFile(String config) {
         return MavenArtifactDownloader.manual(getProject(), config, false);
     }
-
 }

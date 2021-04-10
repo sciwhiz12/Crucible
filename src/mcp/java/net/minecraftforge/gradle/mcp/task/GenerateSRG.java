@@ -23,6 +23,8 @@ package net.minecraftforge.gradle.mcp.task;
 import java.io.File;
 import java.io.IOException;
 import org.gradle.api.DefaultTask;
+import org.gradle.api.file.RegularFileProperty;
+import org.gradle.api.provider.Property;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputFile;
 import org.gradle.api.tasks.OutputFile;
@@ -37,21 +39,29 @@ import net.minecraftforge.srgutils.IMappingFile.IMethod;
 import net.minecraftforge.srgutils.IRenamer;
 
 public class GenerateSRG extends DefaultTask {
-    private File srg;
-    private String mapping;
-    private IMappingFile.Format format = IMappingFile.Format.TSRG;
+    private final RegularFileProperty srg;
+    private final Property<String> mapping;
+    private final Property<IMappingFile.Format> format;
     private boolean notch = false;
     private boolean reverse = false;
-    private File output = getProject().file("build/" + getName() + "/output.tsrg");
+    private final RegularFileProperty output;
+
+    public GenerateSRG() {
+        srg = getProject().getObjects().fileProperty();
+        mapping = getProject().getObjects().property(String.class);
+        format = getProject().getObjects().property(IMappingFile.Format.class);
+        output = getProject().getObjects().fileProperty()
+                .convention(getProject().getLayout().getBuildDirectory().dir(getName()).map(f -> f.file("output.tsrg")));
+    }
 
     @TaskAction
     public void apply() throws IOException {
-        File names = findNames(getMappings());
+        File names = findNames(mapping.get());
         if (names == null)
             throw new IllegalStateException("Invalid mappings: " + getMappings() + " Could not find archive");
 
-        IMappingFile input = IMappingFile.load(srg);
-        if (!getNotch())
+        IMappingFile input = IMappingFile.load(srg.get().getAsFile());
+        if (!notch)
             input = input.reverse().chain(input); // Reverse makes SRG->OBF, chain makes SRG->SRG
 
         McpNames map = McpNames.load(names);
@@ -67,7 +77,7 @@ public class GenerateSRG extends DefaultTask {
             }
         });
 
-        ret.write(getOutput().toPath(), getFormat(), getReverse());
+        ret.write(output.get().getAsFile().toPath(), format.get(), reverse);
     }
 
     private File findNames(String mapping) {
@@ -80,30 +90,21 @@ public class GenerateSRG extends DefaultTask {
     }
 
     @InputFile
-    public File getSrg() {
+    public RegularFileProperty getSrg() {
         return srg;
     }
-    public void setSrg(File value) {
-        this.srg = value;
-    }
 
     @Input
-    public String getMappings() {
+    public Property<String> getMappings() {
         return mapping;
     }
-    public void setMappings(String value) {
-        this.mapping = value;
-    }
 
     @Input
-    public IMappingFile.Format getFormat() {
+    public Property<IMappingFile.Format> getFormat() {
         return format;
     }
-    public void setFormat(IMappingFile.Format value) {
-        this.format = value;
-    }
     public void setFormat(String value) {
-        this.setFormat(IMappingFile.Format.valueOf(value));
+        this.getFormat().set(IMappingFile.Format.valueOf(value));
     }
 
     @Input
@@ -123,10 +124,7 @@ public class GenerateSRG extends DefaultTask {
     }
 
     @OutputFile
-    public File getOutput() {
+    public RegularFileProperty getOutput() {
         return output;
-    }
-    public void setOutput(File value) {
-        this.output = value;
     }
 }

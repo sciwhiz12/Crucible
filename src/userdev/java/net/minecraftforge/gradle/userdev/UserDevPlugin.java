@@ -161,17 +161,17 @@ public class UserDevPlugin implements Plugin<Project> {
         createSrgToMcp.configure(task -> {
             task.setReverse(false);
             task.dependsOn(extractSrg);
-            task.setSrg(extractSrg.get().getOutput().get().getAsFile());
-            task.setMappings(extension.getMappings().get());
-            task.setFormat(IMappingFile.Format.SRG);
-            task.setOutput(project.file("build/" + createSrgToMcp.getName() + "/output.srg"));
+            task.getSrg().set(extractSrg.flatMap(ExtractMCPData::getOutput));
+            task.getMappings().set(extension.getMappings());
+            task.getFormat().set(IMappingFile.Format.SRG);
+            task.getOutput().set(project.getLayout().getBuildDirectory().dir(task.getName()).map(d -> d.file("output.srg")));
         });
 
         createMcpToSrg.configure(task -> {
             task.setReverse(true);
             task.dependsOn(extractSrg);
-            task.setSrg(extractSrg.get().getOutput().get().getAsFile());
-            task.setMappings(extension.getMappings().get());
+            task.getSrg().set(extractSrg.flatMap(ExtractMCPData::getOutput));
+            task.getMappings().set(extension.getMappings());
         });
 
         extractNatives.configure(task -> {
@@ -210,13 +210,13 @@ public class UserDevPlugin implements Plugin<Project> {
             applyRangeConfig.configure(task -> {
                 task.dependsOn(extractRangeConfig, createMcpToSrg);
                 task.setRangeMap(extractRangeConfig.get().getOutput());
-                task.setSrgFiles(createMcpToSrg.get().getOutput());
+                task.setSrgFiles(createMcpToSrg.get().getOutput().get().getAsFile());
                 task.setSources(srcDirs);
             });
 
             dlMappingsNew.configure(task -> {
-                task.setMappings(updateChannel + "_" + updateVersion);
-                task.setOutput(project.file("build/mappings_new.zip"));
+                task.getMappings().set(updateChannel + "_" + updateVersion);
+                task.getOutput().set(project.getLayout().getBuildDirectory().file("mappings_new.zip"));
             });
 
             toMCPNew.configure(task -> {
@@ -289,7 +289,7 @@ public class UserDevPlugin implements Plugin<Project> {
 
             RenameJarInPlace reobfJar = reobf.create(JavaPlugin.JAR_TASK_NAME);
             reobfJar.dependsOn(createMcpToSrg);
-            reobfJar.setMappings(createMcpToSrg.get().getOutput());
+            reobfJar.setMappings(createMcpToSrg.get().getOutput().get().getAsFile());
 
             String assetIndex = mcVer;
 
