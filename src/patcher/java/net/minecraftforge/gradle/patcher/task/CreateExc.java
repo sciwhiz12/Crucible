@@ -20,7 +20,6 @@
 
 package net.minecraftforge.gradle.patcher.task;
 
-import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -38,6 +37,7 @@ import java.util.zip.ZipFile;
 
 import org.apache.commons.io.IOUtils;
 import org.gradle.api.DefaultTask;
+import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.tasks.InputFile;
 import org.gradle.api.tasks.OutputFile;
 import org.gradle.api.tasks.TaskAction;
@@ -48,21 +48,30 @@ import com.google.common.io.Files;
 import de.siegmar.fastcsv.reader.NamedCsvReader;
 
 public class CreateExc extends DefaultTask {
-    private static Pattern CLS_ENTRY = Pattern.compile("L([^;]+);");
+    private static final Pattern CLS_ENTRY = Pattern.compile("L([^;]+);");
 
-    private File srg;
-    private File statics;
-    private File constructors;
-    private File mappings;
-    private File output = getProject().file("build/" + getName() + "/output.exc");
+    private final RegularFileProperty srg;
+    private final RegularFileProperty statics;
+    private final RegularFileProperty constructors;
+    private final RegularFileProperty mappings;
+    private final RegularFileProperty output;
+
+    public CreateExc() {
+        srg = getProject().getObjects().fileProperty();
+        statics = getProject().getObjects().fileProperty();
+        constructors = getProject().getObjects().fileProperty();
+        mappings = getProject().getObjects().fileProperty();
+        output = getProject().getObjects().fileProperty()
+                .convention(getProject().getLayout().getBuildDirectory().dir(getName()).map(d -> d.file("output.exc")));
+    }
 
     @TaskAction
     public void run() throws IOException {
-        Set<String> staticMap = new HashSet<>(Files.readLines(getStatics(), StandardCharsets.UTF_8));
+        Set<String> staticMap = new HashSet<>(Files.readLines(statics.get().getAsFile(), StandardCharsets.UTF_8));
         Map<String, String> names = loadMappings();
         List<String> out = new ArrayList<>();
 
-        List<String> lines = Files.readLines(getSrg(), StandardCharsets.UTF_8);
+        List<String> lines = Files.readLines(srg.get().getAsFile(), StandardCharsets.UTF_8);
         lines = lines.stream().map(line -> line.split("#")[0]).filter(l -> !Strings.isNullOrEmpty(l.trim())).collect(Collectors.toList()); //Strip empty/comments
 
         Map<String, String> classes = new HashMap<>();
@@ -98,11 +107,11 @@ public class CreateExc extends DefaultTask {
             }
         }
 
-        Files.readLines(getConstructors(), StandardCharsets.UTF_8).stream().map(l -> l.split(" ")).forEach(pts -> {
+        Files.readLines(constructors.get().getAsFile(), StandardCharsets.UTF_8).stream().map(l -> l.split(" ")).forEach(pts -> {
             out.add(pts[1] + ".<init>" + pts[2] + "=|" + String.join(",", buildArgs(pts[0], pts[2], false)));
         });
 
-        try (FileOutputStream fos = new FileOutputStream(getOutput())) {
+        try (FileOutputStream fos = new FileOutputStream(output.get().getAsFile())) {
             IOUtils.write(String.join("\n", out), fos, StandardCharsets.UTF_8);
         }
     }
@@ -164,7 +173,7 @@ public class CreateExc extends DefaultTask {
 
     private Map<String, String> loadMappings() throws IOException {
         Map<String, String> names = new HashMap<>();
-        try (ZipFile zip = new ZipFile(getMappings())) {
+        try (ZipFile zip = new ZipFile(mappings.get().getAsFile())) {
             zip.stream().filter(e -> e.getName().equals("fields.csv") || e.getName().equals("methods.csv")).forEach(e -> {
                 try (NamedCsvReader reader = NamedCsvReader.builder().build(new InputStreamReader(zip.getInputStream(e)))) {
                     reader.forEach(row -> names.put(row.getField("searge"), row.getField("name")));
@@ -177,39 +186,27 @@ public class CreateExc extends DefaultTask {
     }
 
     @InputFile
-    public File getSrg() {
+    public RegularFileProperty getSrg() {
         return this.srg;
     }
-    public void setSrg(File value) {
-        this.srg = value;
-    }
+
     @InputFile
-    public File getStatics() {
+    public RegularFileProperty getStatics() {
         return this.statics;
     }
-    public void setStatics(File value) {
-        this.statics = value;
-    }
+
     @InputFile
-    public File getConstructors() {
+    public RegularFileProperty getConstructors() {
         return this.constructors;
     }
-    public void setConstructors(File value) {
-        this.constructors = value;
-    }
+
     @InputFile
-    public File getMappings() {
-        return mappings;
-    }
-    public void setMappings(File value) {
-        this.mappings = value;
+    public RegularFileProperty getMappings() {
+        return this.mappings;
     }
 
     @OutputFile
-    public File getOutput() {
-        return output;
-    }
-    public void setOutput(File value) {
-        this.output = value;
+    public RegularFileProperty getOutput() {
+        return this.output;
     }
 }

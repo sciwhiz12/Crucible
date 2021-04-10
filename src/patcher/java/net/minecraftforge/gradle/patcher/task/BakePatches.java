@@ -20,37 +20,47 @@
 
 package net.minecraftforge.gradle.patcher.task;
 
-import codechicken.diffpatch.cli.PatchOperation;
-import codechicken.diffpatch.util.InputPath;
-import codechicken.diffpatch.util.OutputPath;
-import codechicken.diffpatch.util.archiver.ArchiveFormat;
+import java.io.File;
+import java.io.IOException;
+
 import org.gradle.api.DefaultTask;
+import org.gradle.api.file.DirectoryProperty;
+import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.tasks.InputDirectory;
 import org.gradle.api.tasks.OutputFile;
 import org.gradle.api.tasks.TaskAction;
 
-import java.io.File;
-import java.io.IOException;
+import codechicken.diffpatch.cli.PatchOperation;
+import codechicken.diffpatch.util.InputPath;
+import codechicken.diffpatch.util.OutputPath;
+import codechicken.diffpatch.util.archiver.ArchiveFormat;
 
 /**
  * Bakes Auto-Header patch files.
  */
 public class BakePatches extends DefaultTask {
+    private final DirectoryProperty input;
+    private final RegularFileProperty output;
 
-    private File input;
-    private File output;
+    public BakePatches() {
+        input = getProject().getObjects().directoryProperty();
+        output = getProject().getObjects().fileProperty();
+    }
 
     @TaskAction
     public void doTask() throws IOException {
-        File output = getOutput();
+        File output = this.output.get().getAsFile();
         ArchiveFormat outputFormat = ArchiveFormat.findFormat(output.getName());
-        PatchOperation.bakePatches(new InputPath.FilePath(getInput().toPath(), null), new OutputPath.FilePath(output.toPath(), outputFormat));
+        PatchOperation.bakePatches(new InputPath.FilePath(input.get().getAsFile().toPath(), null), new OutputPath.FilePath(output.toPath(), outputFormat));
     }
 
-    //@formatter:off
-    @InputDirectory public File getInput() { return input; }
-    @OutputFile     public File getOutput() { return output; }
-                    public void setInput(File input) { this.input = input; }
-                    public void setOutput(File output) { this.output = output; }
-    //@formatter:on
+    @InputDirectory
+    public DirectoryProperty getInput() {
+        return input;
+    }
+
+    @OutputFile
+    public RegularFileProperty getOutput() {
+        return output;
+    }
 }
