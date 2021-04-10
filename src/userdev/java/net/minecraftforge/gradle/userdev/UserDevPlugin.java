@@ -203,15 +203,15 @@ public class UserDevPlugin implements Plugin<Project> {
             TaskProvider<ExtractExistingFiles> extractMappedNew = project.getTasks().register(EXTRACT_MAPPED_TASK_NAME, ExtractExistingFiles.class);
 
             extractRangeConfig.configure(task -> {
-                task.addSources(srcDirs);
-                task.addDependencies(javaCompile.getClasspath());
+                task.getSources().from(srcDirs);
+                task.getDependencies().from(javaCompile.getClasspath());
             });
 
             applyRangeConfig.configure(task -> {
                 task.dependsOn(extractRangeConfig, createMcpToSrg);
-                task.setRangeMap(extractRangeConfig.get().getOutput());
-                task.setSrgFiles(createMcpToSrg.get().getOutput().get().getAsFile());
-                task.setSources(srcDirs);
+                task.getRangeMap().set(extractRangeConfig.get().getOutput());
+                task.getSrgFiles().from(createMcpToSrg.flatMap(GenerateSRG::getOutput));
+                task.getSources().from(srcDirs);
             });
 
             dlMappingsNew.configure(task -> {

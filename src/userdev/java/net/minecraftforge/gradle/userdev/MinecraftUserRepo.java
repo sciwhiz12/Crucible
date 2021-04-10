@@ -770,9 +770,9 @@ public class MinecraftUserRepo extends BaseRepo {
             apply.setHasLog(true);
             apply.getTool().set(parent.getConfig().binpatcher.getVersion());
             apply.getArgs().set(parent.getConfig().binpatcher.getArgs());
-            apply.setClean(clean);
-            apply.setPatch(findBinPatches());
-            apply.setOutput(binpatched);
+            apply.getClean().set(clean);
+            apply.getPatch().set(findBinPatches());
+            apply.getOutput().set(binpatched);
             apply.apply();
 
             debug("    Injecting binpatch extras");
@@ -977,8 +977,8 @@ public class MinecraftUserRepo extends BaseRepo {
             if (parent != null && parent.getConfigV2() != null && parent.getConfigV2().processor != null) {
                 DataFunction data = parent.getConfigV2().processor;
                 DynamicJarExec proc = createTask(POST_PROCESS_TASK_PREFIX, DynamicJarExec.class);
-                proc.setInput(output);
-                proc.setOutput(decomp);
+                proc.getInput().set(output);
+                proc.getOutput().set(decomp);
                 proc.getTool().set(data.getVersion());
                 proc.getArgs().set(data.getArgs());
 
@@ -991,7 +991,7 @@ public class MinecraftUserRepo extends BaseRepo {
                         for (Entry<String, String> ent : data.getData().entrySet()) {
                             File target = new File(root, ent.getValue());
                             Utils.extractFile(zip, ent.getValue(), target);
-                            proc.setData(ent.getKey(), target);
+                            proc.getData().put(ent.getKey(), target);
                         }
                     }
                 }

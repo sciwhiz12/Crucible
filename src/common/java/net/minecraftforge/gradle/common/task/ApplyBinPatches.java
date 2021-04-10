@@ -20,64 +20,55 @@
 
 package net.minecraftforge.gradle.common.task;
 
+import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.tasks.InputFile;
 import org.gradle.api.tasks.OutputFile;
 
 import net.minecraftforge.gradle.common.util.Utils;
 
-import java.io.File;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 public class ApplyBinPatches extends JarExec {
-    private Supplier<File> clean;
-    private File patch;
-    private File output;
+    private final RegularFileProperty clean;
+    private final RegularFileProperty patch;
+    private final RegularFileProperty output;
 
     public ApplyBinPatches() {
         tool.set(Utils.BINPATCHER);
         args.addAll("--clean", "{clean}", "--output", "{output}", "--apply", "{patch}");
+
+
+        clean = getProject().getObjects().fileProperty();
+        patch = getProject().getObjects().fileProperty();
+        output = getProject().getObjects().fileProperty()
+                .convention(getProject().getLayout().getBuildDirectory().dir(getName()).map(d -> d.file("output.jar")));
     }
 
     @Override
     protected List<String> filterArgs(List<String> args) {
         Map<String, String> replace = new HashMap<>();
-        replace.put("{clean}", getClean().getAbsolutePath());
-        replace.put("{output}", getOutput().getAbsolutePath());
-        replace.put("{patch}", getPatch().getAbsolutePath());
+        replace.put("{clean}", getClean().get().getAsFile().getAbsolutePath());
+        replace.put("{output}", getOutput().get().getAsFile().getAbsolutePath());
+        replace.put("{patch}", getPatch().get().getAsFile().getAbsolutePath());
 
         return args.stream().map(arg -> replace.getOrDefault(arg, arg)).collect(Collectors.toList());
     }
 
     @InputFile
-    public File getClean() {
-        return clean.get();
-    }
-    public void setClean(File value) {
-        this.clean = () -> value;
-    }
-    public void setClean(Supplier<File> value) {
-        this.clean = value;
+    public RegularFileProperty getClean() {
+        return clean;
     }
 
     @InputFile
-    public File getPatch() {
+    public RegularFileProperty getPatch() {
         return patch;
-    }
-    public void setPatch(File value) {
-        this.patch = value;
     }
 
     @OutputFile
-    public File getOutput() {
-        if (output == null)
-            setOutput(getProject().file("build/" + getName() + "/output.jar"));
+    public RegularFileProperty getOutput() {
         return output;
-    }
-    public void setOutput(File value) {
-        this.output = value;
     }
 }

@@ -239,7 +239,7 @@ public class PatcherPlugin implements Plugin<Project> {
         extractRangeConfig.configure(task -> {
             task.dependsOn(jarConfig);
             task.setOnlyIf(t -> extension.getPatches().isPresent());
-            task.addDependencies(jarConfig.getArchiveFile().get().getAsFile());
+            task.getDependencies().from(jarConfig.getArchiveFile());
         });
         createMcp2Srg.configure(task -> {
             task.setReverse(true);
@@ -258,16 +258,16 @@ public class PatcherPlugin implements Plugin<Project> {
 
         applyRangeConfig.configure(task -> {
             task.dependsOn(extractRangeConfig, createMcp2Srg, createExc);
-            task.setRangeMap(extractRangeConfig.get().getOutput());
-            task.setSrgFiles(createMcp2Srg.get().getOutput().get().getAsFile());
-            task.setExcFiles(createExc.get().getOutput().get().getAsFile());
+            task.getRangeMap().set(extractRangeConfig.flatMap(t -> t.getOutput()));
+            task.getSrgFiles().from(createMcp2Srg.flatMap(t -> t.getOutput()));
+            task.getExcFiles().from(createExc.flatMap(t -> t.getOutput()));
         });
         applyRangeBaseConfig.configure(task -> {
             task.setOnlyIf(t -> extension.getPatches().isPresent());
             task.dependsOn(extractRangeConfig, createMcp2Srg, createExc);
-            task.setRangeMap(extractRangeConfig.get().getOutput());
-            task.setSrgFiles(createMcp2Srg.get().getOutput().get().getAsFile());
-            task.setExcFiles(createExc.get().getOutput().get().getAsFile());
+            task.getRangeMap().set(extractRangeConfig.flatMap(t -> t.getOutput()));
+            task.getSrgFiles().from(createMcp2Srg.flatMap(t -> t.getOutput()));
+            task.getExcFiles().from(createExc.flatMap(t -> t.getOutput()));
         });
         genPatches.configure(task -> {
             task.setOnlyIf(t -> extension.getPatches().isPresent());
@@ -382,8 +382,8 @@ public class PatcherPlugin implements Plugin<Project> {
         project.afterEvaluate(p -> {
             //Add PatchedSrc to a main sourceset and build range tasks
             SourceSet mainSource = javaConv.getSourceSets().getByName(SourceSet.MAIN_SOURCE_SET_NAME);
-            applyRangeConfig.get().setSources(mainSource.getJava().getSrcDirs().stream().filter(f -> !f.equals(extension.getPatchedSrc().get().getAsFile())).collect(Collectors.toList()));
-            applyRangeBaseConfig.get().setSources(extension.getPatchedSrc().get().getAsFile());
+            applyRangeConfig.get().getSources().from(mainSource.getJava().getSrcDirs().stream().filter(f -> !f.equals(extension.getPatchedSrc().get().getAsFile())).collect(Collectors.toList()));
+            applyRangeBaseConfig.get().getSources().from(extension.getPatchedSrc());
             mainSource.java(v -> {
                 v.srcDir(extension.getPatchedSrc().get().getAsFile());
             });
@@ -401,8 +401,8 @@ public class PatcherPlugin implements Plugin<Project> {
             //}); //TODO: Asset downloading, needs asset index from json.
             //javaConv.getSourceSets().stream().forEach(s -> extractRangeConfig.get().addSources(s.getJava().getSrcDirs()));
             // Only add main source, as we inject the patchedSrc into it as a sourceset.
-            extractRangeConfig.get().addSources(mainSource.getJava().getSrcDirs());
-            extractRangeConfig.get().addDependencies(javaCompile.getClasspath());
+            extractRangeConfig.get().getSources().from(mainSource.getJava().getSrcDirs());
+            extractRangeConfig.get().getDependencies().from(javaCompile.getClasspath());
 
             if (extension.getPatches().isPresent() && !extension.getPatches().get().getAsFile().exists()) { //Auto-make folders so that gradle doesnt explode some tasks.
                 extension.getPatches().get().getAsFile().mkdirs();
@@ -428,10 +428,10 @@ public class PatcherPlugin implements Plugin<Project> {
 
                     if (procConfig != null) {
                         procConfig.get().dependsOn(setupMCP);
-                        procConfig.get().setInput(setupMCP.getOutput().get().getAsFile());
+                        procConfig.get().getInput().set(setupMCP.getOutput());
                         procConfig.get().getTool().set(extension.getProcessor().getVersion());
                         procConfig.get().getArgs().set(extension.getProcessor().getArgs());
-                        extension.getProcessorData().get().forEach((key, value) -> procConfig.get().setData(key, value));
+                        extension.getProcessorData().get().forEach((key, value) -> procConfig.get().getData().put(key, value));
                     }
 
                     if (!extension.getCleanSrc().isPresent()) {
@@ -490,10 +490,10 @@ public class PatcherPlugin implements Plugin<Project> {
                     ApplyPatches parentApply = (ApplyPatches) tasks.getByName(applyPatches.get().getName());
                     if (procConfig != null) {
                         procConfig.get().dependsOn(parentApply);
-                        procConfig.get().setInput(parentApply.getOutput().get().getAsFile());
+                        procConfig.get().getInput().set(parentApply.getOutput());
                         procConfig.get().getTool().set(extension.getProcessor().getVersion());
                         procConfig.get().getArgs().set(extension.getProcessor().getArgs());
-                        extension.getProcessorData().get().forEach((key, value) -> procConfig.get().setData(key, value));
+                        extension.getProcessorData().get().forEach((key, value) -> procConfig.get().getData().put(key, value));
                     }
 
                     if (!extension.getCleanSrc().isPresent()) {
@@ -642,8 +642,8 @@ public class PatcherPlugin implements Plugin<Project> {
                 }
             }
 
-            applyRangeConfig.get().setExcFiles(extension.getExcs().getFiles());
-            applyRangeBaseConfig.get().setExcFiles(extension.getExcs().getFiles());
+            applyRangeConfig.get().getExcFiles().from(extension.getExcs());
+            applyRangeBaseConfig.get().getExcFiles().from(extension.getExcs());
 
             if (!extension.getExtraMappings().isEmpty()) {
                 extension.getExtraMappings().stream().filter(e -> e instanceof File).map(e -> (File) e).forEach(e -> {
@@ -683,7 +683,7 @@ public class PatcherPlugin implements Plugin<Project> {
             //Allow generation of patches to skip S2S. For in-dev patches while the code doesn't compile.
             if (extension.isSrgPatches()) {
                 genPatches.get().dependsOn(applyRangeBaseConfig);
-                genPatches.get().setModified(applyRangeBaseConfig.get().getOutput());
+                genPatches.get().setModified(applyRangeBaseConfig.get().getOutput().get().getAsFile());
             } else {
                 //Remap the 'clean' with out mappings.
                 ApplyMappings toMCPClean = project.getTasks().register(APPLY_MAPPINGS_CLEAN_TASK_NAME, ApplyMappings.class).get();

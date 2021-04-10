@@ -20,38 +20,44 @@
 
 package net.minecraftforge.gradle.common.task;
 
-import org.gradle.api.file.FileCollection;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.gradle.api.file.ConfigurableFileCollection;
+import org.gradle.api.file.RegularFileProperty;
+import org.gradle.api.provider.Property;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputFiles;
 import org.gradle.api.tasks.OutputFile;
+
 import net.minecraftforge.gradle.common.util.Utils;
 
-import java.io.File;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
 public class ExtractRangeMap extends JarExec {
-    private Set<File> sources;
-    private Set<FileCollection> dependencies = new HashSet<>();
-    private File output = getProject().file("build/" + getName() + "/output.txt");
-    private String source_compatibility = "1.8";
+    private final ConfigurableFileCollection sources;
+    private final ConfigurableFileCollection dependencies;
+    private final RegularFileProperty output;
+    private final Property<String> sourceCompatibility;
     private boolean batch = true;
 
     public ExtractRangeMap() {
         tool.set(Utils.SRG2SOURCE);
         args.addAll("--extract", "--source-compatibility", "{compat}", "--output", "{output}", "--lib", "{library}", "--input", "{input}", "--batch", "{batched}");
+
+        sources = getProject().getObjects().fileCollection();
+        dependencies = getProject().getObjects().fileCollection();
+        output = getProject().getObjects().fileProperty()
+                .convention(getProject().getLayout().getBuildDirectory().dir(getName()).map(d -> d.file("output.txt")));
+        sourceCompatibility = getProject().getObjects().property(String.class)
+                .convention("1.8");
     }
 
     @Override
     protected List<String> filterArgs(List<String> args) {
         Map<String, String> replace = new HashMap<>();
-        replace.put("{compat}", getSourceCompatibility());
-        replace.put("{output}", getOutput().getAbsolutePath());
+        replace.put("{compat}", getSourceCompatibility().get());
+        replace.put("{output}", getOutput().get().getAsFile().getAbsolutePath());
         replace.put("{batched}", getBatch() ? "true" : "false");
 
         List<String> _args = new ArrayList<>();
@@ -59,11 +65,9 @@ public class ExtractRangeMap extends JarExec {
             if ("{library}".equals(arg)) {
                 String prefix = _args.get(_args.size() - 1);
                 _args.remove(_args.size() - 1);
-                getDependencies().forEach(fc -> {
-                   fc.getFiles().forEach(f -> {
-                       _args.add(prefix);
-                       _args.add(f.getAbsolutePath());
-                   });
+                getDependencies().forEach(f -> {
+                    _args.add(prefix);
+                    _args.add(f.getAbsolutePath());
                 });
             } else if ("{input}".equals(arg)) {
                 String prefix = _args.get(_args.size() - 1);
@@ -80,47 +84,23 @@ public class ExtractRangeMap extends JarExec {
     }
 
     @InputFiles
-    public Set<File> getSources() {
+    public ConfigurableFileCollection getSources() {
         return sources;
-    }
-    public void setSources(Set<File> value) {
-        this.sources = value;
-    }
-    public void addSources(Set<File> values) {
-        if (this.sources == null)
-            this.sources = new HashSet<>();
-        this.sources.addAll(values);
-    }
-    public void sources(Collection<File> values) {
-        if (this.sources == null)
-            this.sources = new HashSet<>();
-        this.sources.addAll(values);
-    }
-    public void sources(File... values) {
-        if (this.sources == null)
-            this.sources = new HashSet<>();
-        for (File value : values)
-            this.sources.add(value);
     }
 
     @InputFiles
-    public Set<FileCollection> getDependencies() {
+    public ConfigurableFileCollection getDependencies() {
         return dependencies;
     }
-    public void addDependencies(FileCollection values) {
-        this.dependencies.add(values);
-    }
-    public void addDependencies(File... values) {
-        for (File dep : values)
-            this.dependencies.add(getProject().files(dep));
+
+    @OutputFile
+    public RegularFileProperty getOutput() {
+        return output;
     }
 
     @Input
-    public String getSourceCompatibility() {
-        return this.source_compatibility;
-    }
-    public void setSourceCompatibility(String value) {
-        this.source_compatibility = value;
+    public Property<String> getSourceCompatibility() {
+        return this.sourceCompatibility;
     }
 
     @Input
@@ -129,13 +109,5 @@ public class ExtractRangeMap extends JarExec {
     }
     public void setBatch(boolean value) {
         this.batch = value;
-    }
-
-    @OutputFile
-    public File getOutput() {
-        return output;
-    }
-    public void setOutput(File value) {
-        this.output = value;
     }
 }

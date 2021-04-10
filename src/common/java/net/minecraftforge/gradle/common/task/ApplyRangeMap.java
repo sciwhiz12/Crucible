@@ -20,6 +20,8 @@
 
 package net.minecraftforge.gradle.common.task;
 
+import org.gradle.api.file.ConfigurableFileCollection;
+import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputFile;
 import org.gradle.api.tasks.InputFiles;
@@ -30,46 +32,46 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 public class ApplyRangeMap extends JarExec {
-
-    //private Set<String> srgExtra = new HashSet<>(); //TODO: Make S2S read strings easier
-    //private Set<String> excExtra = new HashSet<>(); //TODO: Make S2S read strings easier
-    private Set<File> srgs = new HashSet<>();
-    private Set<File> excs = new HashSet<>();
-    private Set<File> sources = new HashSet<>();
-
-    private File rangeMap;
+    private final ConfigurableFileCollection srgs;
+    private final ConfigurableFileCollection excs;
+    private final ConfigurableFileCollection sources;
+    private final RegularFileProperty rangeMap;
+    private final RegularFileProperty output;
     public boolean annotate = false;
     public boolean keepImports = true;
-
-    private File output = getProject().file("build/" + getName() + "/output.zip");
 
     public ApplyRangeMap() {
         tool.set(Utils.SRG2SOURCE);
         args.addAll("--apply", "--input", "{input}", "--range", "{range}", "--srg", "{srg}", "--exc", "{exc}", "--output", "{output}", "--keepImports", "{keepImports}");
+
+        srgs = getProject().getObjects().fileCollection();
+        excs = getProject().getObjects().fileCollection();
+        sources = getProject().getObjects().fileCollection();
+        rangeMap = getProject().getObjects().fileProperty();
+        output = getProject().getObjects().fileProperty()
+                .convention(getProject().getLayout().getBuildDirectory().dir(getName()).map(d -> d.file("output.zip")));
     }
 
     @Override
     protected List<String> filterArgs(List<String> args) {
         Map<String, String> replace = new HashMap<>();
-        replace.put("{range}", getRangeMap().getAbsolutePath());
-        replace.put("{output}", getOutput().getAbsolutePath());
+        replace.put("{range}", getRangeMap().get().getAsFile().getAbsolutePath());
+        replace.put("{output}", getOutput().get().getAsFile().getAbsolutePath());
         replace.put("{annotate}", getAnnotate() ? "true" : "false");
         replace.put("{keepImports}", getKeepImports() ? "true" : "false");
 
         List<String> _args = new ArrayList<>();
         for (String arg : args) {
             if ("{input}".equals(arg))
-                expand(_args, getSources());
+                expand(_args, getSources().getFiles());
             else if ("{srg}".equals(arg))
-                expand(_args, getSrgFiles());
+                expand(_args, getSrgFiles().getFiles());
             else if ("{exc}".equals(arg))
-                expand(_args, getExcFiles());
+                expand(_args, getExcFiles().getFiles());
             else
                 _args.add(replace.getOrDefault(arg, arg));
         }
@@ -87,52 +89,30 @@ public class ApplyRangeMap extends JarExec {
     }
 
     @InputFiles
-    public Set<File> getSrgFiles() {
+    public ConfigurableFileCollection getSrgFiles() {
         return this.srgs;
     }
-    public void setSrgFiles(File... values) {
-        for (File value : values) {
-            this.srgs.add(value);
-        }
-    }
-    /*
-    @Input
-    public Set<String> getSrgExtra() {
-        return this.srgExtra;
-    }
-    public void setSrg(String... values) {
-        for (String val : values) {
-            this.srgExtra.add(val);
-        }
-    }
-    */
 
     @InputFiles
-    public Set<File> getSources() {
+    public ConfigurableFileCollection getSources() {
         return sources;
     }
-    public void setSources(Collection<File> values) {
-        this.sources.addAll(values);
-    }
-    public void setSources(File... values) {
-        for (File value : values) {
-            this.sources.add(value);
-        }
-    }
-    public void sources(File... values) {
-        setSources(values);
-    }
-    public void sources(Collection<File> values) {
-        setSources(values);
+
+    @InputFiles
+    public ConfigurableFileCollection getExcFiles() {
+        return excs;
     }
 
     @InputFile
-    public File getRangeMap() {
+    public RegularFileProperty getRangeMap() {
         return rangeMap;
     }
-    public void setRangeMap(File value) {
-        this.rangeMap = value;
+
+    @OutputFile
+    public RegularFileProperty getOutput() {
+        return output;
     }
+
     @Input
     public boolean getAnnotate() {
         return annotate;
@@ -140,43 +120,12 @@ public class ApplyRangeMap extends JarExec {
     public void setAnnotate(boolean value) {
         this.annotate = value;
     }
+
     @Input
     public boolean getKeepImports() {
         return keepImports;
     }
     public void setKeepImports(boolean value) {
         this.keepImports = value;
-    }
-
-    @InputFiles
-    public Set<File> getExcFiles() {
-        return excs;
-    }
-    public void setExcFiles(File... values) {
-        for (File value : values) {
-            this.excs.add(value);
-        }
-    }
-    public void setExcFiles(Collection<File> values) {
-        this.excs.addAll(values);
-    }
-    /*
-    @Input
-    public Set<String> getExcExtra() {
-        return this.excExtra;
-    }
-    public void setExc(String... values) {
-        for (String val : values) {
-            this.excExtra.add(val);
-        }
-    }
-    */
-
-    @OutputFile
-    public File getOutput() {
-        return output;
-    }
-    public void setOutput(File value) {
-        this.output = value;
     }
 }
