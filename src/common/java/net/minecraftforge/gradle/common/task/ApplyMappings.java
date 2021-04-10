@@ -29,7 +29,6 @@ import java.util.zip.ZipOutputStream;
 import org.apache.commons.io.IOUtils;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.file.RegularFileProperty;
-import org.gradle.api.provider.Property;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputFile;
 import org.gradle.api.tasks.OutputFile;
@@ -42,16 +41,14 @@ public class ApplyMappings extends DefaultTask {
     private final RegularFileProperty input;
     private final RegularFileProperty mappings;
     private final RegularFileProperty output;
-    private final Property<Boolean> javadocs;
-    private final Property<Boolean> lambdas;
+    private boolean javadocs = false;
+    private boolean lambdas = true;
 
     public ApplyMappings() {
         input = getProject().getObjects().fileProperty();
         mappings = getProject().getObjects().fileProperty();
         output = getProject().getObjects().fileProperty()
                 .convention(getProject().getLayout().getBuildDirectory().dir(getName()).map(s -> s.file("output.zip")));
-        javadocs = getProject().getObjects().property(Boolean.class);
-        lambdas = getProject().getObjects().property(Boolean.class);
     }
 
     @TaskAction
@@ -67,7 +64,7 @@ public class ApplyMappings extends DefaultTask {
                         if (!e.getName().endsWith(".java")) {
                             IOUtils.copy(zin.getInputStream(e), out);
                         } else {
-                            out.write(names.rename(zin.getInputStream(e), javadocs.get(), lambdas.get()).getBytes(StandardCharsets.UTF_8));
+                            out.write(names.rename(zin.getInputStream(e), javadocs, lambdas).getBytes(StandardCharsets.UTF_8));
                         }
                         out.closeEntry();
                     } catch (IOException e1) {
@@ -94,12 +91,20 @@ public class ApplyMappings extends DefaultTask {
     }
 
     @Input
-    public Property<Boolean> getJavadocs() {
+    public boolean getJavadocs() {
         return this.javadocs;
     }
 
+    public void setJavadocs(boolean javadocs) {
+        this.javadocs = javadocs;
+    }
+
     @Input
-    public Property<Boolean> getLambdas() {
+    public boolean getLambdas() {
         return this.lambdas;
+    }
+
+    public void setLambdas(boolean lambdas) {
+        this.lambdas = lambdas;
     }
 }
