@@ -289,7 +289,7 @@ public class UserDevPlugin implements Plugin<Project> {
 
             RenameJarInPlace reobfJar = reobf.create(JavaPlugin.JAR_TASK_NAME);
             reobfJar.dependsOn(createMcpToSrg);
-            reobfJar.setMappings(createMcpToSrg.get().getOutput().get().getAsFile());
+            reobfJar.getMappings().set(createMcpToSrg.flatMap(GenerateSRG::getOutput));
 
             String assetIndex = mcVer;
 
@@ -325,7 +325,7 @@ public class UserDevPlugin implements Plugin<Project> {
 
             final Task createMcpToSrg = project.getTasks().findByName(CREATE_MCP_TO_SRG_TASK_NAME);
             if (createMcpToSrg != null) {
-                task.setMappings(() -> createMcpToSrg.getOutputs().getFiles().getSingleFile());
+                task.getMappings().set(createMcpToSrg.getOutputs().getFiles().getSingleFile());
             }
 
             project.getTasks().getByName(BasePlugin.ASSEMBLE_TASK_NAME).dependsOn(task);
@@ -335,7 +335,7 @@ public class UserDevPlugin implements Plugin<Project> {
                 Task jar = project.getTasks().getByName(jarName);
                 if (!(jar instanceof Jar))
                     throw new IllegalStateException(jarName + "  is not a jar task. Can only reobf jars!");
-                task.setInput(((Jar) jar).getArchiveFile().get().getAsFile());
+                task.getInput().set(((Jar) jar).getArchiveFile());
                 task.dependsOn(jar);
 
                 if (createMcpToSrg != null && task.getMappings().equals(createMcpToSrg.getOutputs().getFiles().getSingleFile())) {

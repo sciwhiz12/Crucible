@@ -20,6 +20,8 @@
 
 package net.minecraftforge.gradle.userdev.task;
 
+import org.gradle.api.file.ConfigurableFileCollection;
+import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.tasks.InputFile;
 import org.gradle.api.tasks.InputFiles;
 import org.gradle.api.tasks.OutputFile;
@@ -27,29 +29,30 @@ import org.gradle.api.tasks.OutputFile;
 import net.minecraftforge.gradle.common.task.JarExec;
 import net.minecraftforge.gradle.common.util.Utils;
 
-import java.io.File;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
 public class AccessTransformJar extends JarExec {
-    private File input;
-    private File output;
-    private List<File> ats;
+    private final RegularFileProperty input;
+    private final RegularFileProperty output;
+    private final ConfigurableFileCollection ats;
 
     public AccessTransformJar() {
         tool.set(Utils.ACCESSTRANSFORMER); // AT spec *should* be standardized, it has been for years. So we *shouldn't* need to configure this.
         args.addAll("--inJar", "{input}", "--outJar", "{output}", "--logFile", "accesstransform.log");
+
+        input = getProject().getObjects().fileProperty();
+        output = getProject().getObjects().fileProperty();
+        ats = getProject().getObjects().fileCollection();
     }
 
     @Override
     protected List<String> filterArgs(List<String> args) {
         Map<String, String> replace = new HashMap<>();
-        replace.put("{input}", getInput().getAbsolutePath());
-        replace.put("{output}", getOutput().getAbsolutePath());
+        replace.put("{input}", getInput().get().getAsFile().getAbsolutePath());
+        replace.put("{output}", getOutput().get().getAsFile().getAbsolutePath());
 
         List<String> ret = args.stream().map(arg -> replace.getOrDefault(arg, arg)).collect(Collectors.toList());
         ats.forEach(f -> {
@@ -60,33 +63,17 @@ public class AccessTransformJar extends JarExec {
     }
 
     @InputFiles
-    public List<File> getAts() {
+    public ConfigurableFileCollection getAts() {
         return ats;
-    }
-    public void setAts(Iterable<File> values) {
-        if (ats == null)
-            ats = new ArrayList<>();
-        values.forEach(ats::add);
-    }
-    public void setAts(File... values) {
-        if (ats == null)
-            ats = new ArrayList<>();
-        ats.addAll(Arrays.asList(values));
     }
 
     @InputFile
-    public File getInput() {
+    public RegularFileProperty getInput() {
         return input;
-    }
-    public void setInput(File value) {
-        this.input = value;
     }
 
     @OutputFile
-    public File getOutput() {
+    public RegularFileProperty getOutput() {
         return output;
-    }
-    public void setOutput(File value) {
-        this.output = value;
     }
 }

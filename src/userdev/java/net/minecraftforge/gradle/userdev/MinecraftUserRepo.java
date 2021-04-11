@@ -587,11 +587,11 @@ public class MinecraftUserRepo extends BaseRepo {
             debug("    Applying MCInjector");
             //Apply MCInjector so we can compile against this jar
             ApplyMCPFunction mci = createTask(MCI_JAR_TASK_PREFIX, ApplyMCPFunction.class);
-            mci.setFunctionName("mcinject");
+            mci.getFunctionName().set("mcinject");
             mci.setHasLog(false);
-            mci.setInput(srged);
-            mci.setMCP(mcp.getZip());
-            mci.setOutput(mcinject);
+            mci.getInput().set(srged);
+            mci.getMCP().set(mcp.getZip());
+            mci.getOutput().set(mcinject);
             mci.apply();
 
             debug("    Creating MCP Inject Sources");
@@ -670,16 +670,16 @@ public class MinecraftUserRepo extends BaseRepo {
 
                 debug("    Applying Access Transformer");
                 AccessTransformJar at = createTask(ACCESS_TRANSFORM_JAR_TASK_PREFIX, AccessTransformJar.class);
-                at.setInput(injected);
-                at.setOutput(bin);
-                at.setAts(ATS);
+                at.getInput().set(injected);
+                at.getOutput().set(bin);
+                at.getAts().from(ATS);
 
                 if (baseAT.length() != 0) {
                     File parentAT = project.file("build/" + at.getName() + "/parent_at.cfg");
                     if (!parentAT.getParentFile().exists())
                         parentAT.getParentFile().mkdirs();
                     Files.write(parentAT.toPath(), baseAT.toString().getBytes(StandardCharsets.UTF_8));
-                    at.setAts(parentAT);
+                    at.getAts().from(parentAT);
                 }
 
                 at.apply();
@@ -692,17 +692,17 @@ public class MinecraftUserRepo extends BaseRepo {
                 //Remap library to MCP names, in place, sorta hacky with ATs but it should work.
                 RenameJarInPlace rename = createTask(RENAME_JAR_IN_PLACE_TASK_PREFIX, RenameJarInPlace.class);
                 rename.setHasLog(false);
-                rename.setInput(bin);
-                rename.setMappings(findSrgToMcp(mapping, names));
+                rename.getInput().set(bin);
+                rename.getMappings().set(findSrgToMcp(mapping, names));
                 rename.apply();
             } else {
                 debug("    Renaming injected jar");
                 //Remap library to MCP names
                 RenameJar rename = createTask(RENAME_JAR_TASK_PREFIX, RenameJar.class);
                 rename.setHasLog(false);
-                rename.setInput(injected);
-                rename.setOutput(bin);
-                rename.setMappings(findSrgToMcp(mapping, names));
+                rename.getInput().set(injected);
+                rename.getOutput().set(bin);
+                rename.getMappings().set(findSrgToMcp(mapping, names));
                 rename.apply();
             }
 
@@ -808,9 +808,9 @@ public class MinecraftUserRepo extends BaseRepo {
                 //Remap to SRG names
                 RenameJar rename = createTask(RENAME_JAR_TASK_PREFIX, RenameJar.class);
                 rename.setHasLog(false);
-                rename.setInput(merged);
-                rename.setOutput(srged);
-                rename.setMappings(obf2Srg);
+                rename.getInput().set(merged);
+                rename.getOutput().set(srged);
+                rename.getMappings().set(obf2Srg);
                 rename.apply();
                 return srged;
             } else {

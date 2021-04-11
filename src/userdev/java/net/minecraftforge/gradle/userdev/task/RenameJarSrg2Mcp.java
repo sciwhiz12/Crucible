@@ -20,37 +20,39 @@
 
 package net.minecraftforge.gradle.userdev.task;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.tasks.InputFile;
 import org.gradle.api.tasks.OutputFile;
 
 import net.minecraftforge.gradle.common.task.JarExec;
 import net.minecraftforge.gradle.common.util.Utils;
 
-import java.io.File;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.function.Supplier;
-import java.util.stream.Collectors;
-
 public class RenameJarSrg2Mcp extends JarExec {
-    private Supplier<File> input;
-    private File output;
-    private Supplier<File> mappings;
-    private boolean signatureRemoval;
+    private final RegularFileProperty input;
+    private final RegularFileProperty output;
+    private final RegularFileProperty mappings;
+    private boolean signatureRemoval = false;
 
     public RenameJarSrg2Mcp() {
         tool.set(Utils.INSTALLERTOOLS);
         args.addAll("--task", "SRG_TO_MCP", "--input", "{input}", "--output", "{output}", "--mcp", "{mappings}", "{strip}");
+
+        input = getProject().getObjects().fileProperty();
+        output = getProject().getObjects().fileProperty();
+        mappings = getProject().getObjects().fileProperty();
     }
 
     @Override
     protected List<String> filterArgs(List<String> args) {
         Map<String, String> replace = new HashMap<>();
-        replace.put("{input}", getInput().getAbsolutePath());
-        replace.put("{output}", getOutput().getAbsolutePath());
-        replace.put("{mappings}", getMappings().getAbsolutePath());
+        replace.put("{input}", getInput().get().getAsFile().getAbsolutePath());
+        replace.put("{output}", getOutput().get().getAsFile().getAbsolutePath());
+        replace.put("{mappings}", getMappings().get().getAsFile().getAbsolutePath());
         replace.put("{strip}", getSignatureRemoval()? "--strip-signatures" : "");
 
         return args.stream().map(arg -> replace.getOrDefault(arg, arg)).filter(it -> !it.isEmpty()).collect(Collectors.toList());
@@ -59,37 +61,23 @@ public class RenameJarSrg2Mcp extends JarExec {
     public boolean getSignatureRemoval() {
         return this.signatureRemoval;
     }
+
     public void setSignatureRemoval(boolean value) {
         this.signatureRemoval = value;
     }
 
     @InputFile
-    public File getMappings() {
-        return mappings.get();
-    }
-    public void setMappings(File value) {
-        this.mappings = () -> value;
-    }
-    public void setMappings(Supplier<File> value) {
-        this.mappings = value;
+    public RegularFileProperty getMappings() {
+        return mappings;
     }
 
     @InputFile
-    public File getInput() {
-        return input.get();
-    }
-    public void setInput(File value) {
-        this.input = () -> value;
-    }
-    public void setInput(Supplier<File> value) {
-        this.input = value;
+    public RegularFileProperty getInput() {
+        return input;
     }
 
     @OutputFile
-    public File getOutput() {
+    public RegularFileProperty getOutput() {
         return output;
-    }
-    public void setOutput(File value) {
-        this.output = value;
     }
 }

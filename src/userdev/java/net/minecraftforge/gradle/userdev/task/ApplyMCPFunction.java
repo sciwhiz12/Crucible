@@ -20,6 +20,9 @@
 
 package net.minecraftforge.gradle.userdev.task;
 
+import org.gradle.api.file.RegularFileProperty;
+import org.gradle.api.provider.Property;
+import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputFile;
 import org.gradle.api.tasks.OutputFile;
 import org.gradle.api.tasks.TaskAction;
@@ -31,7 +34,6 @@ import net.minecraftforge.gradle.common.util.Utils;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -44,37 +46,43 @@ import java.util.zip.ZipFile;
 public class ApplyMCPFunction extends JarExec {
     private static final Pattern REPLACE_PATTERN = Pattern.compile("^\\{(\\w+)\\}$");
 
-    private File input;
-    private File output;
-    private File mcp;
+    private final RegularFileProperty input;
+    private final RegularFileProperty output;
+    private final RegularFileProperty mcp;
+    private final Property<String> functionName;
+    private final Map<String, String> replacements = new HashMap<>();
 
-    private String functionName;
-    private Map<String, String> replacements = new HashMap<>();
-
-    public ApplyMCPFunction() {}
+    public ApplyMCPFunction() {
+        input = getProject().getObjects().fileProperty();
+        output = getProject().getObjects().fileProperty()
+                .convention(getProject().getLayout().getBuildDirectory().dir(getName()).map(d -> d.file("output.jar")));
+        mcp = getProject().getObjects().fileProperty();
+        functionName = getProject().getObjects().property(String.class);
+    }
 
     @TaskAction
     public void apply() throws IOException {
-        MCPConfigV1 config = MCPConfigV2.getFromArchive(getMCP());
-        MCPConfigV1.Function function = config.getFunction(functionName);
+        File mcp = this.mcp.get().getAsFile();
+        MCPConfigV1 config = MCPConfigV2.getFromArchive(mcp);
+        MCPConfigV1.Function function = config.getFunction(functionName.get());
 
         tool.set(function.getVersion());
         args.set(function.getArgs());
 
-        try (ZipFile zip = new ZipFile(getMCP())) {
+        try (ZipFile zip = new ZipFile(mcp)) {
             function.getArgs().forEach(arg -> {
                 Matcher matcher = REPLACE_PATTERN.matcher(arg);
                 String argName = matcher.find() ? matcher.group(1) : null;
                 if (argName == null) return;
 
                 if (argName.equals("input")) {
-                    replacements.put(arg, getInput().getAbsolutePath());
+                    replacements.put(arg, getInput().get().getAsFile().getAbsolutePath());
                 }
                 else if (argName.equals("output")) {
-                    replacements.put(arg, getOutput().getAbsolutePath());
+                    replacements.put(arg, getOutput().get().getAsFile().getAbsolutePath());
                 }
                 else if (argName.equals("log")) {
-                    replacements.put(arg, getOutput().getAbsolutePath() + ".log");
+                    replacements.put(arg, getOutput().get().getAsFile().getAbsolutePath() + ".log");
                 }
                 else {
                     Object referencedData = config.getData().get(argName);
@@ -106,36 +114,26 @@ public class ApplyMCPFunction extends JarExec {
     }
 
     @InputFile
-    public File getInput() {
+    public RegularFileProperty getInput() {
         return input;
-    }
-    public void setInput(File value) {
-        this.input = value;
     }
 
     @InputFile
-    public File getMCP() {
+    public RegularFileProperty getMCP() {
         return mcp;
-    }
-    public void setMCP(File value) {
-        this.mcp = value;
     }
 
     @OutputFile
-    public File getOutput() {
-        if (output == null)
-            setOutput(getProject().file("build/" + getName() + "/output.jar"));
+    public RegularFileProperty getOutput() {
         return output;
     }
-    public void setOutput(File value) {
-        this.output = value;
-    }
 
-    public void setFunctionName(String name) {
-        functionName = name;
+    @Input
+    public Property<String> getFunctionName() {
+        return functionName;
     }
 
     private File makeFile(String name) {
-        return new File(getOutput().getParent(), name);
+        return new File(getOutput().get().getAsFile().getParent(), name);
     }
 }

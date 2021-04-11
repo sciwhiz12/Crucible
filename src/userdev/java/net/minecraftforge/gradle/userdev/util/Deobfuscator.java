@@ -124,9 +124,9 @@ public class Deobfuscator {
 
         if (!cache.isSame() || !output.exists()) {
             RenameJarSrg2Mcp rename = project.getTasks().create("_RenameSrg2Mcp_" + new Random().nextInt(), RenameJarSrg2Mcp.class);
-            rename.setInput(original);
-            rename.setOutput(output);
-            rename.setMappings(names);
+            rename.getInput().set(original);
+            rename.getOutput().set(output);
+            rename.getMappings().set(names);
             rename.setSignatureRemoval(true);
             rename.apply();
             rename.setEnabled(false);

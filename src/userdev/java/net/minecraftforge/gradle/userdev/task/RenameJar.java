@@ -20,6 +20,8 @@
 
 package net.minecraftforge.gradle.userdev.task;
 
+import org.gradle.api.file.ConfigurableFileCollection;
+import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.tasks.InputFile;
 import org.gradle.api.tasks.InputFiles;
 import org.gradle.api.tasks.Optional;
@@ -28,39 +30,39 @@ import org.gradle.api.tasks.OutputFile;
 import net.minecraftforge.gradle.common.task.JarExec;
 import net.minecraftforge.gradle.common.util.Utils;
 
-import java.io.File;
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Supplier;
-import java.util.stream.Collectors;
 
 public class RenameJar extends JarExec {
-    private Supplier<File> input;
-    private File output;
-    private Supplier<File> mappings;
-    private List<Supplier<File>> extraMappings;
+    private final RegularFileProperty input;
+    private final RegularFileProperty output;
+    private final RegularFileProperty mappings;
+    private final ConfigurableFileCollection extraMappings;
 
     public RenameJar() {
         tool.set(Utils.SPECIALSOURCE);
         args.addAll("--in-jar", "{input}", "--out-jar", "{output}", "--srg-in", "{mappings}");
+
+        input = getProject().getObjects().fileProperty();
+        output = getProject().getObjects().fileProperty();
+        mappings = getProject().getObjects().fileProperty();
+        extraMappings = getProject().getObjects().fileCollection();
     }
 
     @Override
     protected List<String> filterArgs(List<String> args) {
         Map<String, String> replace = new HashMap<>();
-        replace.put("{input}", getInput().getAbsolutePath());
-        replace.put("{output}", getOutput().getAbsolutePath());
-        replace.put("{mappings}", getMappings().getAbsolutePath());
+        replace.put("{input}", getInput().get().getAsFile().getAbsolutePath());
+        replace.put("{output}", getOutput().get().getAsFile().getAbsolutePath());
+        replace.put("{mappings}", getMappings().get().getAsFile().getAbsolutePath());
 
         List<String> _args = new ArrayList<>();
         for (String arg : args) {
             if ("{mappings}".equals(arg)) {
                 String prefix = _args.get(_args.size() - 1);
-                _args.add(getMappings().getAbsolutePath());
+                _args.add(getMappings().get().getAsFile().getAbsolutePath());
 
                 getExtraMappings().forEach(f -> {
                    _args.add(prefix);
@@ -75,69 +77,23 @@ public class RenameJar extends JarExec {
     }
 
     @InputFile
-    public File getMappings() {
-        return mappings.get();
-    }
-    public void setMappings(Supplier<File> value) {
-        this.mappings = value;
-    }
-    public void setMappings(File value) {
-        this.mappings(value);
-    }
-    public void mappings(File value) {
-        this.mappings(() -> value);
-    }
-    public void mappings(Supplier<File> value) {
-        this.setMappings(value);
+    public RegularFileProperty getMappings() {
+        return mappings;
     }
 
     @Optional
     @InputFiles
-    public List<File> getExtraMappings() {
-        return this.extraMappings == null ? Collections.emptyList() : this.extraMappings.stream().map(Supplier::get).collect(Collectors.toList());
-    }
-    public void setExtraMappingsDelayed(Collection<Supplier<File>> values) {
-        this.extraMappings = new ArrayList<>(values);
-    }
-    public void setExtraMappings(Collection<File> values) {
-        List<Supplier<File>> _new = new ArrayList<>();
-        values.forEach(f  -> _new.add(() -> f));
-        this.extraMappings = _new;
-    }
-    public void extraMapping(File value) {
-        this.extraMapping(() -> value);
-    }
-    public void extraMapping(Supplier<File> value) {
-        if (this.extraMappings == null)
-            this.extraMappings = new ArrayList<>();
-        this.extraMappings.add(value);
+    public ConfigurableFileCollection getExtraMappings() {
+        return extraMappings;
     }
 
     @InputFile
-    public File getInput() {
-        return input.get();
-    }
-    public void setInput(Supplier<File> value) {
-        this.input = value;
-    }
-    public void setInput(File value) {
-        this.setInput(() -> value);
-    }
-    public void input(File value) {
-        this.input(() -> value);
-    }
-    public void input(Supplier<File> value) {
-        this.setInput(value);
+    public RegularFileProperty getInput() {
+        return input;
     }
 
     @OutputFile
-    public File getOutput() {
+    public RegularFileProperty getOutput() {
         return output;
-    }
-    public void setOutput(File value) {
-        this.output = value;
-    }
-    public void output(File value) {
-        this.setOutput(value);
     }
 }
