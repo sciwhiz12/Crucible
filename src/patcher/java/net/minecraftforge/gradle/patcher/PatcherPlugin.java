@@ -286,21 +286,21 @@ public class PatcherPlugin implements Plugin<Project> {
         });
         genJoinedBinPatches.configure(task -> {
             task.dependsOn(reobfJar);
-            task.setDirtyJar(reobfJar.get().getOutput());
-            task.addPatchSet(extension.getPatches().get().getAsFile());
-            task.setSide("joined");
+            task.getDirtyJar().set(reobfJar.get().getOutput());
+            task.getPatchSets().from(extension.getPatches());
+            task.getSide().set("joined");
         });
         genClientBinPatches.configure(task -> {
             task.dependsOn(reobfJar);
-            task.setDirtyJar(reobfJar.get().getOutput());
-            task.addPatchSet(extension.getPatches().get().getAsFile());
-            task.setSide("client");
+            task.getDirtyJar().set(reobfJar.get().getOutput());
+            task.getPatchSets().from(extension.getPatches());
+            task.getSide().set("client");
         });
         genServerBinPatches.configure(task -> {
             task.dependsOn(reobfJar);
-            task.setDirtyJar(reobfJar.get().getOutput());
-            task.addPatchSet(extension.getPatches().get().getAsFile());
-            task.setSide("server");
+            task.getDirtyJar().set(reobfJar.get().getOutput());
+            task.getPatchSets().from(extension.getPatches());
+            task.getSide().set("server");
         });
         genBinPatches.configure(task -> {
             task.dependsOn(genJoinedBinPatches.get(), genClientBinPatches.get(), genServerBinPatches.get());
@@ -560,7 +560,7 @@ public class PatcherPlugin implements Plugin<Project> {
                     for (TaskProvider<GenerateBinPatches> task : Lists.newArrayList(genJoinedBinPatches, genClientBinPatches, genServerBinPatches)) {
                         GenerateBinPatches pgen = (GenerateBinPatches) tasks.getByName(task.get().getName());
                         for (File patches : pgen.getPatchSets()) {
-                            task.get().addPatchSet(patches);
+                            task.get().getPatchSets().from(patches);
                         }
                     }
 
@@ -638,7 +638,7 @@ public class PatcherPlugin implements Plugin<Project> {
             if (fakePatches != null) {
                 for (TaskProvider<GenerateBinPatches> task : Lists.newArrayList(genJoinedBinPatches, genClientBinPatches, genServerBinPatches)) {
                     task.get().dependsOn(fakePatches);
-                    task.get().addPatchSet(fakePatches.getOutput().get().getAsFile());
+                    task.get().getPatchSets().from(fakePatches.getOutput());
                 }
             }
 
@@ -725,16 +725,16 @@ public class PatcherPlugin implements Plugin<Project> {
                 //TODO: Extra SRGs, I don't think this is needed tho...
 
                 genJoinedBinPatches.get().dependsOn(srg);
-                genJoinedBinPatches.get().setSrg(srg.get().getOutput().get().getAsFile());
-                genJoinedBinPatches.get().setCleanJar(joined);
+                genJoinedBinPatches.get().getSrg().set(srg.flatMap(GenerateSRG::getOutput));
+                genJoinedBinPatches.get().getCleanJar().set(joined);
 
                 genClientBinPatches.get().dependsOn(srg);
-                genClientBinPatches.get().setSrg(srg.get().getOutput().get().getAsFile());
-                genClientBinPatches.get().setCleanJar(client);
+                genClientBinPatches.get().getSrg().set(srg.flatMap(GenerateSRG::getOutput));
+                genClientBinPatches.get().getCleanJar().set(client);
 
                 genServerBinPatches.get().dependsOn(srg);
-                genServerBinPatches.get().setSrg(srg.get().getOutput().get().getAsFile());
-                genServerBinPatches.get().setCleanJar(server);
+                genServerBinPatches.get().getSrg().set(srg.flatMap(GenerateSRG::getOutput));
+                genServerBinPatches.get().getCleanJar().set(server);
 
                 filterNew.get().dependsOn(srg);
                 filterNew.get().setSrg(srg.get().getOutput().get().getAsFile());

@@ -20,6 +20,10 @@
 
 package net.minecraftforge.gradle.patcher.task;
 
+import org.gradle.api.file.ConfigurableFileCollection;
+import org.gradle.api.file.RegularFileProperty;
+import org.gradle.api.provider.MapProperty;
+import org.gradle.api.provider.Property;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputFile;
 import org.gradle.api.tasks.InputFiles;
@@ -31,35 +35,41 @@ import net.minecraftforge.gradle.common.util.Utils;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 public class GenerateBinPatches extends JarExec {
-    private File cleanJar;
-    private File dirtyJar;
-    private File srg;
-    private Set<File> patchSets = new HashSet<>();
-    private String side;
-    private File output = null;
-    private Map<String, File> extras = new HashMap<>();
+    private final RegularFileProperty cleanJar;
+    private final RegularFileProperty dirtyJar;
+    private final RegularFileProperty srg;
+    private final ConfigurableFileCollection patchSets;
+    private final Property<String> side;
+    private final RegularFileProperty output;
+    private final MapProperty<String, File> extras;
 
     public GenerateBinPatches() {
         tool.set(Utils.BINPATCHER);
         args.addAll("--clean", "{clean}", "--create", "{dirty}", "--output", "{output}", "--patches", "{patches}", "--srg", "{srg}");
+
+        cleanJar = getProject().getObjects().fileProperty();
+        dirtyJar = getProject().getObjects().fileProperty();
+        srg = getProject().getObjects().fileProperty();
+        patchSets = getProject().getObjects().fileCollection();
+        side = getProject().getObjects().property(String.class);
+        output = getProject().getObjects().fileProperty()
+                .convention(getProject().getLayout().getBuildDirectory().dir(getName()).map(d -> d.file(side.getOrElse("output") + ".lzma")));
+        extras = getProject().getObjects().mapProperty(String.class, File.class);
     }
 
     @Override
     protected List<String> filterArgs(List<String> args) {
         Map<String, String> replace = new HashMap<>();
-        replace.put("{clean}", getCleanJar().getAbsolutePath());
-        replace.put("{dirty}", getDirtyJar().getAbsolutePath());
-        replace.put("{output}", getOutput().getAbsolutePath());
-        replace.put("{srg}", getSrg().getAbsolutePath());
-        this.extras.forEach((k,v) -> replace.put('{' + k + '}', v.getAbsolutePath()));
+        replace.put("{clean}", getCleanJar().get().getAsFile().getAbsolutePath());
+        replace.put("{dirty}", getDirtyJar().get().getAsFile().getAbsolutePath());
+        replace.put("{output}", getOutput().get().getAsFile().getAbsolutePath());
+        replace.put("{srg}", getSrg().get().getAsFile().getAbsolutePath());
+        this.extras.get().forEach((k,v) -> replace.put('{' + k + '}', v.getAbsolutePath()));
 
         List<String> _args = new ArrayList<>();
         for (String arg : args) {
@@ -78,71 +88,39 @@ public class GenerateBinPatches extends JarExec {
     }
 
     @InputFile
-    public File getCleanJar() {
+    public RegularFileProperty getCleanJar() {
         return cleanJar;
-    }
-    public void setCleanJar(File value) {
-        this.cleanJar = value;
     }
 
     @InputFile
-    public File getDirtyJar() {
+    public RegularFileProperty getDirtyJar() {
         return dirtyJar;
-    }
-    public void setDirtyJar(File value) {
-        this.dirtyJar = value;
     }
 
     @InputFiles
-    public Set<File> getPatchSets() {
+    public ConfigurableFileCollection getPatchSets() {
         return this.patchSets;
-    }
-    public void setPatchSets(Set<File> values) {
-        this.patchSets = values;
-    }
-    public void addPatchSet(File value) {
-        if (value != null) {
-            this.patchSets.add(value);
-        }
     }
 
     @InputFiles
     @Optional
-    public Collection<File> getExtraFiles() {
-        return this.extras.values();
-    }
-    public void addExtra(String key, File value) {
-        this.extras.put(key, value);
+    public MapProperty<String, File> getExtraFiles() {
+        return this.extras;
     }
 
     @InputFile
-    public File getSrg() {
+    public RegularFileProperty getSrg() {
         return this.srg;
-    }
-    public void setSrg(File value) {
-        this.srg = value;
     }
 
     @Input
     @Optional
-    public String getSide() {
+    public Property<String> getSide() {
         return this.side;
-    }
-    public void setSide(String value) {
-        this.side = value;
-        if (output == null) {
-            setOutput(getProject().file("build/" + getName() + "/" + getSide() + ".lzma"));
-        }
     }
 
     @OutputFile
-    public File getOutput() {
-        if (output == null) {
-            setOutput(getProject().file("build/" + getName() + "/output.lzma"));
-        }
+    public RegularFileProperty getOutput() {
         return output;
-    }
-    public void setOutput(File value) {
-        this.output = value;
     }
 }
