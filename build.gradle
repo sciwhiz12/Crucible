@@ -97,6 +97,7 @@ publishing {
             artifact sourcesJar
             groupId 'tk.sciwhiz12.gradle'
             artifactId 'crucible'
+            version = versionInfo["raw_version"] + (versionInfo["snapshot"] ? "-SNAPSHOT" : "")
         }
     }
     repositories {
