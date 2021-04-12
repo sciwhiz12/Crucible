@@ -2,13 +2,11 @@ plugins {
     id 'java-gradle-plugin'
     id 'eclipse'
     id 'maven-publish'
-    id 'org.cadixdev.licenser' version '0.5.0'
-    id 'org.ajoberstar.grgit' version '4.1.0'
     id 'com.github.ben-manes.versions' version '0.36.0'
-  //id 'com.github.johnrengelman.shadow' version '2.0.4'
 }
+apply from: 'version.gradle'
 
-version = (grgit.describe(longDescr: true, tags: true) ?: 'unknown-unknown-unknown').split('-').with { "${it[0]}.${it[1]}" }
+version = versionInfo.version
 println('Version: ' + version + ' Java: ' + System.getProperty('java.version') + ' JVM: ' + System.getProperty('java.vm.version') + '(' + System.getProperty('java.vendor') + ') Arch: ' + System.getProperty('os.arch'))
 
 sourceSets {
@@ -52,20 +50,8 @@ repositories {
 	maven { url = 'https://repo.gradle.org/gradle/libs-releases-local/' }
 }
 
-license {
-    header = file('HEADER')
-    ext {
-        name = 'ForgeGradle'
-        year = 2018
-        fullname = 'Forge Development LLC'
-    }
-    exclude '**/*.properties'
-    exclude 'net/minecraftforge/gradle/common/diff/'
-    exclude 'net/minecraftforge/gradle/common/util/JavaVersionParser.java'
-}
-
 wrapper {
-    gradleVersion = '6.8'
+    gradleVersion = '6.8.1'
     distributionType = Wrapper.DistributionType.ALL
 }
 
@@ -109,18 +95,24 @@ publishing {
     publications {
         pluginMaven(MavenPublication) {
             artifact sourcesJar
+            groupId 'tk.sciwhiz12.gradle'
+            artifactId 'crucible'
         }
     }
     repositories {
         maven {
-            if (project.hasProperty('forgeMavenPassword')) {
+            name 'projectLocal'
+            url 'file://' + rootProject.file('repo').getAbsolutePath()
+        }
+        def remoteURL = project.findProperty("remoteURL") ?: 'file://test'
+        if (remoteURL != null) {
+            maven {
+                name 'remote'
+                url = remoteURL
                 credentials {
-                    username project.properties.forgeMavenUser
-                    password project.properties.forgeMavenPassword
+                    username project.findProperty("remoteUsername")
+                    password project.findProperty("remotePassword")
                 }
-                url 'https://files.minecraftforge.net/maven/manage/upload'
-            } else {
-                url 'file://' + rootProject.file('repo').getAbsolutePath()
             }
         }
     }

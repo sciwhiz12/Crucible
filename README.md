@@ -1,6 +1,13 @@
-ForgeGradle
+Crucible
 ===========
 
-[![Join the chat at https://gitter.im/MinecraftForge/ForgeGradle](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/MinecraftForge/ForgeGradle?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+A personal modified fork of [MinecraftForge/ForgeGradle](https://github.com/MinecraftForge/ForgeGradle/).
 
-Minecraft mod development framework used by Forge and FML for the gradle build system
+This fork is meant as a testing ground for changes to the original ForgeGradle, to be published under another artifact
+ID to be suitable for use in Minecraft Forge development environments.
+
+License
+-------
+
+This project is licensed under the GNU Lesser General Public License v2.1 (the GNU LGPL v2.1), the same as it's original 
+parent project.
