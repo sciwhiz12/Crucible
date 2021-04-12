@@ -4,6 +4,8 @@ on:
       - 'dev/**'
   workflow_dispatch:
 
+name: "Publish development snapshot"
+
 jobs:
   build:
     name: 'Build and Test'
@@ -11,6 +13,8 @@ jobs:
     steps:
       - name: 'Checkout repository'
         uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
       - name: 'Set up JDK 8'
         uses: actions/setup-java@v2
         with:
@@ -26,6 +30,8 @@ jobs:
     steps:
       - name: 'Checkout repository'
         uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
       - name: 'Set up JDK 8'
         uses: actions/setup-java@v2
         with:
