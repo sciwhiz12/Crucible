@@ -271,7 +271,7 @@ public class PatcherPlugin implements Plugin<Project> {
         });
         genPatches.configure(task -> {
             task.setOnlyIf(t -> extension.getPatches().isPresent());
-            task.setOutput(extension.getPatches().get().getAsFile());
+            task.getOutput().set(extension.getPatches());
         });
         bakePatches.configure(task -> {
             task.dependsOn(genPatches);
@@ -446,9 +446,7 @@ public class PatcherPlugin implements Plugin<Project> {
                         }
                     }
                     applyPatches.get().getBase().convention(extension.getCleanSrc().getAsFile());
-                    if (genPatches.get().getBase() == null) {
-                        genPatches.get().setBase(extension.getCleanSrc().get().getAsFile());
-                    }
+                    genPatches.get().getBase().convention(extension.getCleanSrc());
 
                     DownloadMCPConfig dlMCP = (DownloadMCPConfig)tasks.getByName(MCPPlugin.DOWNLOAD_MCPCONFIG_TASK_NAME);
 
@@ -508,9 +506,7 @@ public class PatcherPlugin implements Plugin<Project> {
                         }
                     }
                     applyPatches.get().getBase().convention(extension.getCleanSrc().getAsFile());
-                    if (genPatches.get().getBase() == null) {
-                        genPatches.get().setBase(extension.getCleanSrc().get().getAsFile());
-                    }
+                    genPatches.get().getBase().convention(extension.getCleanSrc());
 
                     if (createMcp2Srg.get().getSrg().getOrNull() == null) {
                         ExtractMCPData extract = ((ExtractMCPData)tasks.getByName(EXTRACT_SRG_TASK_NAME));
@@ -664,11 +660,11 @@ public class PatcherPlugin implements Plugin<Project> {
             if (userdevConfig.get().getSource() == null) {
                 userdevConfig.get().setSource(project.getGroup().toString() + ':' + sourcesJar.get().getArchiveBaseName().getOrNull() + ':' + project.getVersion() + ':' + sourcesJar.get().getArchiveClassifier().getOrNull() + '@' + sourcesJar.get().getArchiveExtension().getOrNull());
             }
-            if (!"a/".contentEquals(genPatches.get().getOriginalPrefix())) {
-                userdevConfig.get().setPatchesOriginalPrefix(genPatches.get().getOriginalPrefix());
+            if (!"a/".contentEquals(genPatches.get().getOriginalPrefix().get())) {
+                userdevConfig.get().setPatchesOriginalPrefix(genPatches.get().getOriginalPrefix().get());
             }
-            if (!"b/".contentEquals(genPatches.get().getModifiedPrefix())) {
-                userdevConfig.get().setPatchesModifiedPrefix(genPatches.get().getModifiedPrefix());
+            if (!"b/".contentEquals(genPatches.get().getModifiedPrefix().get())) {
+                userdevConfig.get().setPatchesModifiedPrefix(genPatches.get().getModifiedPrefix().get());
             }
             if (procConfig != null) {
                 userdevJar.get().dependsOn(procConfig);
@@ -683,7 +679,7 @@ public class PatcherPlugin implements Plugin<Project> {
             //Allow generation of patches to skip S2S. For in-dev patches while the code doesn't compile.
             if (extension.isSrgPatches()) {
                 genPatches.get().dependsOn(applyRangeBaseConfig);
-                genPatches.get().setModified(applyRangeBaseConfig.get().getOutput().get().getAsFile());
+                genPatches.get().getModified().set(applyRangeBaseConfig.flatMap(t -> t.getOutput()));
             } else {
                 //Remap the 'clean' with out mappings.
                 ApplyMappings toMCPClean = project.getTasks().register(APPLY_MAPPINGS_CLEAN_TASK_NAME, ApplyMappings.class).get();
@@ -702,8 +698,8 @@ public class PatcherPlugin implements Plugin<Project> {
                 applyPatches.get().setDependsOn(Lists.newArrayList(toMCPClean));
                 applyPatches.get().getBase().set(toMCPClean.getOutput().get().getAsFile());
                 genPatches.get().setDependsOn(Lists.newArrayList(toMCPClean, dirtyZip));
-                genPatches.get().setBase(toMCPClean.getOutput().get().getAsFile());
-                genPatches.get().setModified(dirtyZip.getArchivePath());
+                genPatches.get().getBase().set(toMCPClean.getOutput());
+                genPatches.get().getModified().set(dirtyZip.getArchiveFile());
             }
 
             {

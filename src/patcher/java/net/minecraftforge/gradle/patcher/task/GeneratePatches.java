@@ -25,50 +25,63 @@ import codechicken.diffpatch.cli.DiffOperation;
 import codechicken.diffpatch.util.LoggingOutputStream;
 import codechicken.diffpatch.util.archiver.ArchiveFormat;
 import org.gradle.api.DefaultTask;
+import org.gradle.api.file.DirectoryProperty;
+import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.logging.LogLevel;
+import org.gradle.api.model.ObjectFactory;
+import org.gradle.api.provider.Property;
 import org.gradle.api.tasks.*;
 
-import java.io.File;
 import java.nio.file.Path;
 
 public class GeneratePatches extends DefaultTask {
 
-    private File base;
-    private File modified;
-    private File output;
-    private ArchiveFormat outputFormat;
-    private boolean autoHeader;
+    private final RegularFileProperty base;
+    private final RegularFileProperty modified;
+    private final DirectoryProperty output;
+    private final Property<ArchiveFormat> outputFormat;
+    private final Property<String> originalPrefix;
+    private final Property<String> modifiedPrefix;
     private int contextLines = -1;
-    private boolean verbose = false;
-    private boolean printSummary = false;
+    private boolean autoHeader;
+    private boolean verbose;
+    private boolean printSummary;
 
-    private String originalPrefix = "a/";
-    private String modifiedPrefix = "b/";
+    public GeneratePatches() {
+        ObjectFactory objects = getProject().getObjects();
+
+        base = objects.fileProperty();
+        modified = objects.fileProperty();
+        output = objects.directoryProperty();
+        outputFormat = objects.property(ArchiveFormat.class)
+                .convention(output.map(s -> ArchiveFormat.findFormat(s.getAsFile().toPath().getFileName())));
+        originalPrefix = objects.property(String.class)
+                .convention("a/");
+        modifiedPrefix = objects.property(String.class)
+                .convention("b/");
+    }
 
     @TaskAction
     public void doTask() throws Exception {
-        Path outputPath = getOutput().toPath();
-        ArchiveFormat outputFormat = getOutputFormat();
-        if (outputFormat == null) {
-            outputFormat = ArchiveFormat.findFormat(outputPath.getFileName());
-        }
-        getProject().getLogger().info("Base:" + getBase().toString());
-        getProject().getLogger().info("Modified:" + getModified().toString());
+        Path basePath = base.get().getAsFile().toPath();
+        Path modifiedPath = modified.get().getAsFile().toPath();
+        Path outputPath = output.get().getAsFile().toPath();
+        getProject().getLogger().info("Base: {}", basePath);
+        getProject().getLogger().info("Modified: {}", modifiedPath);
 
         DiffOperation.Builder builder = DiffOperation.builder()
                 .logTo(new LoggingOutputStream(getLogger(), LogLevel.LIFECYCLE))
-                .aPath(getBase().toPath())
-                .bPath(getModified().toPath())
-                .outputPath(outputPath, outputFormat)
-                .autoHeader(isAutoHeader())
-                .verbose(isVerbose())
-                .summary(isPrintSummary())
-                .aPrefix(originalPrefix)
-                .bPrefix(modifiedPrefix);
+                .aPath(basePath)
+                .bPath(modifiedPath)
+                .outputPath(outputPath, outputFormat.getOrNull())
+                .autoHeader(autoHeader)
+                .verbose(verbose)
+                .summary(printSummary)
+                .aPrefix(originalPrefix.get())
+                .bPrefix(modifiedPrefix.get());
 
-        int context = getContextLines();
-        if (context != -1) {
-            builder.context(context);
+        if (contextLines != -1) {
+            builder.context(contextLines);
         }
 
         CliOperation.Result<DiffOperation.DiffSummary> result = builder.build().operate();
@@ -79,26 +92,76 @@ public class GeneratePatches extends DefaultTask {
         }
     }
 
-    //@formatter:off
-    @InputFile                 public File getBase() { return base; }
-    @InputFile                 public File getModified() { return modified; }
-    @OutputDirectory           public File getOutput() { return output; }
-    @Input           @Optional public ArchiveFormat getOutputFormat() { return outputFormat; }
-    @Input           @Optional public boolean isAutoHeader() { return autoHeader; }
-    @Input           @Optional public int getContextLines() { return contextLines; }
-                     @Optional public boolean isVerbose() { return verbose; }
-                     @Optional public boolean isPrintSummary() { return printSummary; }
-    @Input           @Optional public String getOriginalPrefix() { return originalPrefix; }
-    @Input           @Optional public String getModifiedPrefix() { return modifiedPrefix; }
-                               public void setBase(File base) { this.base = base; }
-                               public void setModified(File modified) { this.modified = modified; }
-                               public void setOutput(File patches) { this.output = patches; }
-                               public void setOutputFormat(ArchiveFormat format) { this.outputFormat = format; }
-                               public void setAutoHeader(boolean autoHeader) { this.autoHeader = autoHeader; }
-                               public void setContextLines(int lines) { this.contextLines = lines; }
-                               public void setVerbose(boolean verbose) { this.verbose = verbose; }
-                               public void setPrintSummary(boolean printSummary) { this.printSummary = printSummary; }
-                               public void setOriginalPrefix(String originalPrefix) { this.originalPrefix = originalPrefix; }
-                               public void setModifiedPrefix(String modifiedPrefix) { this.modifiedPrefix = modifiedPrefix; }
-    //@formatter:on
+    @InputFile
+    public RegularFileProperty getBase() {
+        return base;
+    }
+
+    @InputFile
+    public RegularFileProperty getModified() {
+        return modified;
+    }
+
+    @OutputDirectory
+    public DirectoryProperty getOutput() {
+        return output;
+    }
+
+    @Input
+    @Optional
+    public Property<ArchiveFormat> getOutputFormat() {
+        return outputFormat;
+    }
+
+    @Input
+    @Optional
+    public Property<String> getOriginalPrefix() {
+        return originalPrefix;
+    }
+
+    @Input
+    @Optional
+    public Property<String> getModifiedPrefix() {
+        return modifiedPrefix;
+    }
+
+    @Input
+    @Optional
+    public boolean isAutoHeader() {
+        return autoHeader;
+    }
+
+    public void setAutoHeader(boolean autoHeader) {
+        this.autoHeader = autoHeader;
+    }
+
+    @Input
+    @Optional
+    public int getContextLines() {
+        return contextLines;
+    }
+
+    public void setContextLines(int lines) {
+        this.contextLines = lines;
+    }
+
+    @Console
+    @Optional
+    public boolean isVerbose() {
+        return verbose;
+    }
+
+    public void setVerbose(boolean verbose) {
+        this.verbose = verbose;
+    }
+
+    @Console
+    @Optional
+    public boolean isPrintSummary() {
+        return printSummary;
+    }
+
+    public void setPrintSummary(boolean printSummary) {
+        this.printSummary = printSummary;
+    }
 }
