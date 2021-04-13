@@ -22,6 +22,12 @@ package net.minecraftforge.gradle.common.util;
 
 import javax.annotation.Nullable;
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.ObjectOutputStream;
+import java.io.Serializable;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.Locale;
 import java.util.function.Predicate;
 
@@ -33,7 +39,9 @@ import org.gradle.api.artifacts.Dependency;
 import org.gradle.api.artifacts.ResolvedArtifact;
 import org.gradle.api.specs.Spec;
 
-public class Artifact implements ArtifactIdentifier, Comparable<Artifact> {
+public class Artifact implements ArtifactIdentifier, Comparable<Artifact>, Serializable {
+    private static final long serialVersionUID = 1L;
+
     // group:name:version[:classifier][@extension]
     private final String group;
     private final String name;
@@ -42,11 +50,12 @@ public class Artifact implements ArtifactIdentifier, Comparable<Artifact> {
     private final String ext;
 
     // Cached so we don't rebuild every time we're asked.
-    private final String path;
-    private final String file;
-    private final String fullDescriptor;
-    private final ComparableVersion comparableVersion;
-    private final boolean isSnapshot;
+    // Transient field so these aren't serialized
+    private transient final String path;
+    private transient final String file;
+    private transient final String fullDescriptor;
+    private transient final ComparableVersion comparableVersion;
+    private transient final boolean isSnapshot;
 
     public static Artifact from(String descriptor) {
         String group, name, version;
