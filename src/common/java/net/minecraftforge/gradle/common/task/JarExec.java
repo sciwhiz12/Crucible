@@ -37,6 +37,8 @@ import com.google.common.collect.Multimap;
 import com.google.common.collect.Multimaps;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.file.ConfigurableFileCollection;
+import org.gradle.api.file.Directory;
+import org.gradle.api.file.RegularFile;
 import org.gradle.api.provider.ListProperty;
 import org.gradle.api.provider.Property;
 import org.gradle.api.provider.Provider;
@@ -61,6 +63,9 @@ public class JarExec extends DefaultTask {
     private final Provider<File> toolFile;
     private final Provider<String> resolvedVersion;
 
+    protected final Provider<Directory> workDir = getProject().getLayout().getBuildDirectory().dir(getName());
+    protected final Provider<RegularFile> logFile = workDir.map(d -> d.file("log.txt"));
+
     public JarExec() {
         tool = getProject().getObjects().property(String.class);
         toolFile = tool.map(toolStr -> MavenArtifactDownloader.gradle(getProject(), toolStr, false));
@@ -80,12 +85,10 @@ public class JarExec extends DefaultTask {
         String mainClass = jarFile.getManifest().getMainAttributes().getValue(Attributes.Name.MAIN_CLASS);
         jarFile.close();
 
-        File workDir = getProject().file("build/" + getName());
-        if (!workDir.exists()) {
-            workDir.mkdirs();
+        File logFile = this.logFile.get().getAsFile();
+        if (logFile.getParentFile() != null && !logFile.getParentFile().exists()) {
+            logFile.getParentFile().mkdirs();
         }
-
-        File logFile = new File(workDir, "log.txt");
 
         try (OutputStream log = hasLog ? new BufferedOutputStream(new FileOutputStream(logFile)) : NULL) {
             PrintWriter printer = new PrintWriter(log, true);
@@ -121,6 +124,7 @@ public class JarExec extends DefaultTask {
         if (hasLog)
             postProcess(logFile);
 
+        File workDir = this.workDir.get().getAsFile();
         if (workDir.list().length == 0)
             workDir.delete();
     }

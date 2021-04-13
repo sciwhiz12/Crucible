@@ -43,21 +43,13 @@ import net.minecraftforge.gradle.mcp.function.MCPFunction;
 import net.minecraftforge.gradle.mcp.function.MCPFunctionFactory;
 import net.minecraftforge.gradle.mcp.task.DownloadMCPConfig;
 import net.minecraftforge.gradle.mcp.task.SetupMCP;
-import net.minecraftforge.gradle.patcher.task.CreateFakeSASPatches;
+import net.minecraftforge.gradle.patcher.task.*;
 import net.minecraftforge.gradle.mcp.task.DownloadMCPMappings;
 import net.minecraftforge.gradle.mcp.task.GenerateSRG;
-import net.minecraftforge.gradle.patcher.task.GenerateBinPatches;
 import net.minecraftforge.gradle.common.task.ApplyMappings;
-import net.minecraftforge.gradle.patcher.task.ApplyPatches;
 import net.minecraftforge.gradle.common.task.ApplyRangeMap;
-import net.minecraftforge.gradle.patcher.task.CreateExc;
 import net.minecraftforge.gradle.common.task.ExtractExistingFiles;
 import net.minecraftforge.gradle.common.task.ExtractRangeMap;
-import net.minecraftforge.gradle.patcher.task.BakePatches;
-import net.minecraftforge.gradle.patcher.task.FilterNewJar;
-import net.minecraftforge.gradle.patcher.task.GeneratePatches;
-import net.minecraftforge.gradle.patcher.task.GenerateUserdevConfig;
-import net.minecraftforge.gradle.patcher.task.ReobfuscateJar;
 
 import org.gradle.api.DefaultTask;
 import org.gradle.api.Plugin;
@@ -280,9 +272,8 @@ public class PatcherPlugin implements Plugin<Project> {
         });
 
         reobfJar.configure(task -> {
-            task.dependsOn(jarConfig, dlMappingsConfig);
-            task.setInput(jarConfig.getArchiveFile().get().getAsFile());
-            task.setClasspath(project.getConfigurations().getByName(MINECRAFT_IMPLEMENTATION_CONFIGURATION_NAME));
+            task.getInput().set(jarConfig.getArchiveFile());
+            task.getClasspath().from(project.getConfigurations().getByName(MINECRAFT_IMPLEMENTATION_CONFIGURATION_NAME));
         });
         genJoinedBinPatches.configure(task -> {
             task.dependsOn(reobfJar);
@@ -307,7 +298,7 @@ public class PatcherPlugin implements Plugin<Project> {
         });
         filterNew.configure(task -> {
             task.dependsOn(reobfJar);
-            task.setInput(reobfJar.get().getOutput());
+            task.setInput(reobfJar.get().getOutput().get().getAsFile());
         });
         /*
          * All sources in SRG names.
@@ -716,8 +707,7 @@ public class PatcherPlugin implements Plugin<Project> {
                     throw new RuntimeException("Something horrible happenend, joined " + (extension.getNotchObf() ? "notch" : "SRG") + " jar not found");
 
                 TaskProvider<GenerateSRG> srg = extension.getNotchObf() ? createMcp2Obf : createMcp2Srg;
-                reobfJar.get().dependsOn(srg);
-                reobfJar.get().setSrg(srg.get().getOutput().get().getAsFile());
+                reobfJar.get().getSrg().set(srg.flatMap(GenerateSRG::getOutput));
                 //TODO: Extra SRGs, I don't think this is needed tho...
 
                 genJoinedBinPatches.get().dependsOn(srg);

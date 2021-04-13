@@ -20,104 +20,58 @@
 
 package net.minecraftforge.gradle.patcher.task;
 
+import com.google.common.collect.ImmutableMap;
+import com.google.common.io.Files;
+import net.minecraftforge.gradle.common.task.JarExec;
+import net.minecraftforge.gradle.common.util.Utils;
 import org.apache.commons.io.IOUtils;
-import org.gradle.api.DefaultTask;
-import org.gradle.api.file.FileCollection;
+import org.gradle.api.file.RegularFile;
+import org.gradle.api.file.RegularFileProperty;
+import org.gradle.api.provider.Provider;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.InputFile;
-import org.gradle.api.tasks.InputFiles;
-import org.gradle.api.tasks.Optional;
 import org.gradle.api.tasks.OutputFile;
 import org.gradle.api.tasks.TaskAction;
 
-import com.google.common.io.Files;
-
-import net.minecraftforge.gradle.common.util.MavenArtifactDownloader;
-import net.minecraftforge.gradle.common.util.Utils;
-
 import java.io.BufferedOutputStream;
-import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.Enumeration;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
-import java.util.jar.Attributes;
-import java.util.jar.JarFile;
 import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 import java.util.zip.ZipOutputStream;
 
-public class ReobfuscateJar extends DefaultTask {
-
-    private String tool = Utils.SPECIALSOURCE;
-    private String[] args = new String[] {"--in-jar", "{input}", "--out-jar", "{output}", "--srg-in", "{srg}", "--live"};
-    private FileCollection classpath = null;
-    private File input;
-    private File srg;
-    //TODO: Extra SRGs
+public class ReobfuscateJar extends JarExec {
+    private final RegularFileProperty input;
+    private final RegularFileProperty srg;
+    private final RegularFileProperty output;
     private boolean keepPackages = false;
     private boolean keepData = false;
-    private File output = getProject().file("build/" + getName() + "/output.jar");
-    private File output_temp = getProject().file("build/" + getName() + "/output_temp.jar");
+
+    private final Provider<RegularFile> outputTemp = workDir.map(d -> d.file("output_temp.jar"));
+
+    public ReobfuscateJar() {
+        tool.set(Utils.SPECIALSOURCE);
+        args.addAll("--in-jar", "{input}", "--out-jar", "{output}", "--srg-in", "{srg}", "--live");
+
+        input = getProject().getObjects().fileProperty();
+        srg = getProject().getObjects().fileProperty();
+        output = getProject().getObjects().fileProperty();
+    }
 
     @TaskAction
     public void apply() throws IOException {
-        File jar = MavenArtifactDownloader.gradle(getProject(), getTool(), false);
+        super.apply();
 
-        Map<String, String> replace = new HashMap<>();
-        replace.put("{input}", getInput().getAbsolutePath());
-        replace.put("{output}", output_temp.getAbsolutePath());
-        replace.put("{srg}", getSrg().getAbsolutePath());
+        try (OutputStream log = new BufferedOutputStream(new FileOutputStream(logFile.get().getAsFile()))) {
 
-        List<String> _args = new ArrayList<>();
-        for (String arg : args) {
-            _args.add(replace.getOrDefault(arg, arg));
-        }
-
-        // Locate main class in jar file
-        JarFile jarFile = new JarFile(jar);
-        String mainClass = jarFile.getManifest().getMainAttributes().getValue(Attributes.Name.MAIN_CLASS);
-        jarFile.close();
-
-        File workDir = getProject().file("build/" + getName());
-        if (!workDir.exists()) {
-            workDir.mkdirs();
-        }
-
-        try (OutputStream log = new BufferedOutputStream(new FileOutputStream(new File(workDir, "log.txt")))) {
-            getProject().javaexec(java -> {
-                // Execute command
-                java.setArgs(_args);
-                if (getClasspath() == null) {
-                    java.setClasspath(getProject().files(jar));
-                } else {
-                    java.setClasspath(getProject().files(getClasspath(), jar));
-                }
-                java.setWorkingDir(workDir);
-                java.setMain(mainClass);
-                java.setStandardOutput(new OutputStream() {
-                    @Override
-                    public void flush() throws IOException {
-                        log.flush();
-                    }
-                    @Override
-                    public void close() {}
-                    @Override
-                    public void write(int b) throws IOException {
-                        log.write(b);
-                    }
-                });
-            }).rethrowFailure().assertNormalExitValue();
-
-            List<String> lines = Files.readLines(getSrg(), StandardCharsets.UTF_8);
+            List<String> lines = Files.readLines(srg.get().getAsFile(), StandardCharsets.UTF_8);
             lines = lines.stream().map(line -> line.split("#")[0]).filter(l -> l != null & !l.trim().isEmpty()).collect(Collectors.toList()); //Strip empty/comments
 
             Set<String> packages = new HashSet<>();
@@ -132,8 +86,8 @@ public class ReobfuscateJar extends DefaultTask {
                         }
                     });
 
-            try (ZipFile zin = new ZipFile(output_temp);
-                 ZipOutputStream out = new ZipOutputStream(new FileOutputStream(getOutput()))) {
+            try (ZipFile zin = new ZipFile(outputTemp.get().getAsFile());
+                 ZipOutputStream out = new ZipOutputStream(new FileOutputStream(outputTemp.get().getAsFile()))) {
                 for (Enumeration<? extends ZipEntry> enu = zin.entries(); enu.hasMoreElements(); ) {
                     ZipEntry entry = enu.nextElement();
                     boolean filter = entry.isDirectory() || entry.getName().startsWith("mcp/"); //Directories and MCP's annotations
@@ -150,33 +104,42 @@ public class ReobfuscateJar extends DefaultTask {
                 }
             }
 
-            output_temp.delete();
+            outputTemp.get().getAsFile().delete();
         }
     }
 
-    @Input
-    public String getTool() {
-        return this.tool;
-    }
-    public void setTool(String value) {
-        this.tool = value;
+    @Override
+    protected List<String> filterArgs(List<String> args) {
+        return replaceArgs(args, ImmutableMap.of(
+                "{input}", input.get().getAsFile(),
+                "{output}", outputTemp.get().getAsFile(),
+                "{srg}", srg.get().getAsFile()), null);
     }
 
-    @Input
-    public String[] getArgs() {
-        return this.args;
+    @InputFile
+    public RegularFileProperty getInput() {
+        return input;
     }
-    public void setArgs(String[] value) {
-        this.args = value;
+
+    @InputFile
+    public RegularFileProperty getSrg() {
+        return srg;
+    }
+
+    @OutputFile
+    public RegularFileProperty getOutput() {
+        return output;
     }
 
     @Input
     public boolean getKeepPackages() {
         return this.keepPackages;
     }
+
     public void keepPackages() {
         this.keepPackages = true;
     }
+
     public void filterPackages() {
         this.keepPackages = false;
     }
@@ -185,43 +148,12 @@ public class ReobfuscateJar extends DefaultTask {
     public boolean getKeepData() {
         return this.keepData;
     }
+
     public void keepData() {
         this.keepData = true;
     }
+
     public void filterData() {
         this.keepData = false;
-    }
-
-    @InputFile
-    public File getInput() {
-        return input;
-    }
-    public void setInput(File value) {
-        this.input = value;
-    }
-
-    @InputFile
-    public File getSrg() {
-        return srg;
-    }
-    public void setSrg(File value) {
-        this.srg = value;
-    }
-
-    @Optional
-    @InputFiles
-    public FileCollection getClasspath() {
-        return this.classpath;
-    }
-    public void setClasspath(FileCollection value) {
-        this.classpath = value;
-    }
-
-    @OutputFile
-    public File getOutput() {
-        return output;
-    }
-    public void setOutput(File value) {
-        this.output = value;
     }
 }
