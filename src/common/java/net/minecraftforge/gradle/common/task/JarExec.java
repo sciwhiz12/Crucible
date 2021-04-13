@@ -156,7 +156,7 @@ public class JarExec extends DefaultTask {
             prevArg = arg;
         }
 
-        return args;
+        return newArgs;
     }
 
     private String toString(Object obj) {
