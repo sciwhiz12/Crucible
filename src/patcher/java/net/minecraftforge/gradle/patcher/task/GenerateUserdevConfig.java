@@ -20,33 +20,9 @@
 
 package net.minecraftforge.gradle.patcher.task;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeSet;
-
-import groovy.lang.MissingPropertyException;
-import org.gradle.api.DefaultTask;
-import org.gradle.api.NamedDomainObjectContainer;
-import org.gradle.api.Project;
-import org.gradle.api.tasks.Input;
-import org.gradle.api.tasks.InputFiles;
-import org.gradle.api.tasks.Optional;
-import org.gradle.api.tasks.OutputFile;
-import org.gradle.api.tasks.TaskAction;
-
 import com.google.common.io.Files;
-
 import groovy.lang.Closure;
+import groovy.lang.MissingPropertyException;
 import net.minecraftforge.gradle.common.config.MCPConfigV1.Function;
 import net.minecraftforge.gradle.common.config.UserdevConfigV1;
 import net.minecraftforge.gradle.common.config.UserdevConfigV2;
@@ -55,36 +31,83 @@ import net.minecraftforge.gradle.common.util.RunConfig;
 import net.minecraftforge.gradle.common.util.Utils;
 import net.minecraftforge.gradle.mcp.MCPExtension;
 import net.minecraftforge.gradle.patcher.PatcherExtension;
+import org.gradle.api.DefaultTask;
+import org.gradle.api.NamedDomainObjectContainer;
+import org.gradle.api.Project;
+import org.gradle.api.file.ConfigurableFileCollection;
+import org.gradle.api.file.RegularFileProperty;
+import org.gradle.api.model.ObjectFactory;
+import org.gradle.api.provider.ListProperty;
+import org.gradle.api.provider.MapProperty;
+import org.gradle.api.provider.Property;
+import org.gradle.api.provider.Provider;
+import org.gradle.api.tasks.*;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.inject.Inject;
+import java.io.File;
+import java.io.IOException;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
 
 public class GenerateUserdevConfig extends DefaultTask {
 
     private final NamedDomainObjectContainer<RunConfig> runs;
 
-    private Set<File> ats = new TreeSet<>();
-    private Set<File> sass = new TreeSet<>();
-    private Set<File> srgs = new TreeSet<>();
-    private List<String> srgLines = new ArrayList<>();
-    private File output = getProject().file("build/" + getName() + "/output.json");
-    private String universal;
-    private String source;
-    private String tool;
-    private String[] args;
-    private List<String> libraries;
-    private String inject;
+    private final ConfigurableFileCollection ats;
+    private final ConfigurableFileCollection sass;
+    private final ConfigurableFileCollection srgs;
+    private final ListProperty<String> srgLines;
+    private final RegularFileProperty output;
+    private final Property<String> universal;
+    private final Property<String> source;
+    private final Property<String> tool;
+    private final ListProperty<String> args;
+    private final ListProperty<String> libraries;
+    private final Property<String> inject;
+    private final Property<String> patchesOriginalPrefix;
+    private final Property<String> patchesModifiedPrefix;
+    private final ListProperty<String> universalFilters;
+    private final Property<String> sourceFileEncoding;
+
+    @Nullable
     private DataFunction processor;
-    private Map<String, File> processorData = new HashMap<>();
-    private String patchesOriginalPrefix;
-    private String patchesModifiedPrefix;
+    private MapProperty<String, File> processorData;
+
     private boolean notchObf = false;
-    private List<String> universalFilters;
-    private String sourceFileEncoding = StandardCharsets.UTF_8.name();
 
     @Inject
     public GenerateUserdevConfig(@Nonnull final Project project) {
         this.runs = project.container(RunConfig.class, name -> new RunConfig(project, name));
+
+        ObjectFactory objects = project.getObjects();
+        ats = objects.fileCollection();
+        sass = objects.fileCollection();
+        srgs = objects.fileCollection();
+        srgLines = objects.listProperty(String.class);
+        universal = objects.property(String.class);
+        source = objects.property(String.class);
+        tool = objects.property(String.class);
+        args = objects.listProperty(String.class);
+        libraries = objects.listProperty(String.class);
+        inject = objects.property(String.class);
+        patchesOriginalPrefix = objects.property(String.class)
+                .convention("a/");
+        patchesModifiedPrefix = objects.property(String.class)
+                .convention("b/");
+        universalFilters = objects.listProperty(String.class);
+        sourceFileEncoding = objects.property(String.class)
+                .convention(StandardCharsets.UTF_8.name());
+
+        processorData = objects.mapProperty(String.class, File.class);
+
+        output = objects.fileProperty()
+                .convention(getProject().getLayout().getBuildDirectory().dir(getName()).map(d -> d.file("output.json")));
     }
 
     @TaskAction
@@ -92,35 +115,33 @@ public class GenerateUserdevConfig extends DefaultTask {
         UserdevConfigV2 json = new UserdevConfigV2(); //TODO: Move this to plugin so we can re-use the names in both tasks?
         json.spec = isV2() ? 2 : 1;
         json.binpatches = "joined.lzma";
-        json.sources = source;
-        json.universal = universal;
+        json.sources = source.get();
+        json.universal = universal.get();
         json.patches = "patches/";
         json.inject = "inject/";
-        if (libraries != null && !libraries.isEmpty())
-            libraries.forEach(json::addLibrary);
-        getATs().forEach(at -> json.addAT("ats/" + at.getName()));
-        getSASs().forEach(at -> json.addSAS("sas/" + at.getName()));
-        getSRGs().forEach(srg -> json.addSRG("srgs/" + srg.getName()));
-        getSRGLines().forEach(json::addSRG);
+        libraries.get().forEach(json::addLibrary);
+        ats.forEach(at -> json.addAT("ats/" + at.getName()));
+        sass.forEach(at -> json.addSAS("sas/" + at.getName()));
+        srgs.forEach(srg -> json.addSRG("srgs/" + srg.getName()));
+        srgLines.get().forEach(json::addSRG);
         addParent(json, getProject());
 
         runs.getAsMap().forEach(json::addRun);
 
         json.binpatcher = new Function();
-        json.binpatcher.setVersion(getTool());
-        json.binpatcher.setArgs(Arrays.asList(args));
+        json.binpatcher.setVersion(tool.get());
+        json.binpatcher.setArgs(args.get());
 
         if (isV2()) {
-            json.processor = this.processor;
-            json.patchesOriginalPrefix = this.patchesOriginalPrefix;
-            json.patchesModifiedPrefix = this.patchesModifiedPrefix;
-            json.setNotchObf(this.notchObf);
-            json.setSourceFileCharset(this.sourceFileEncoding);
-            if (this.universalFilters != null)
-                this.universalFilters.forEach(json::addUniversalFilter);
+            json.processor = processor;
+            json.patchesOriginalPrefix = patchesOriginalPrefix.get();
+            json.patchesModifiedPrefix = patchesModifiedPrefix.get();
+            json.setNotchObf(notchObf);
+            json.setSourceFileCharset(sourceFileEncoding.get());
+            universalFilters.get().forEach(json::addUniversalFilter);
         }
 
-        Files.write(Utils.GSON.toJson(json).getBytes(StandardCharsets.UTF_8), getOutput());
+        Files.write(Utils.GSON.toJson(json).getBytes(StandardCharsets.UTF_8), output.get().getAsFile());
     }
 
     private void addParent(UserdevConfigV1 json, Project project) {
@@ -148,106 +169,68 @@ public class GenerateUserdevConfig extends DefaultTask {
     }
 
     private boolean isV2() {
-        return this.notchObf ||
-            this.processor != null ||
-            (this.universalFilters != null && !this.universalFilters.isEmpty()) ||
-            !"a/".equals(patchesOriginalPrefix) ||
-            !"b/".equals(patchesModifiedPrefix);
+        return this.notchObf || this.processor != null || this.universalFilters.isPresent() ||
+            !"a/".equals(patchesOriginalPrefix.get()) ||
+            !"b/".equals(patchesModifiedPrefix.get());
     }
 
     @Input
-    public List<String> getLibraries() {
-        return libraries == null ? Collections.emptyList() : libraries;
-    }
-    public void setLibrary(String value) {
-        if (libraries == null)
-            libraries = new ArrayList<>();
-        libraries.add(value);
-    }
-    public void addLibrary(String value) {
-        setLibrary(value);
+    public ListProperty<String> getLibraries() {
+        return libraries;
     }
 
     @Input
-    public String getUniversal() {
+    public Property<String> getUniversal() {
         return universal;
     }
-    public void setUniversal(String value) {
-        this.universal = value;
-    }
 
     @Input
-    public String getSource() {
+    public Property<String> getSource() {
         return source;
     }
-    public void setSource(String value) {
-        this.source = value;
-    }
 
     @Input
-    public String getTool() {
+    public Property<String> getTool() {
         return tool;
-    }
-    public void setTool(String value) {
-        this.tool = value;
     }
 
     @Input
     @Optional
-    public String getInject() {
+    public Property<String> getInject() {
         return inject;
     }
-    public void setInject(String value) {
-        this.inject = value;
-    }
 
     @Input
-    public String[] getArguments() {
-        return args == null ? new String[0] : args;
-    }
-    public void setArguments(String... value) {
-        this.args = value;
+    public ListProperty<String> getArguments() {
+        return args;
     }
 
     @InputFiles
-    public Set<File> getATs() {
+    public ConfigurableFileCollection getATs() {
         return this.ats;
     }
-    public void addAT(File value) {
-        this.ats.add(value);
-    }
 
     @InputFiles
-    public Set<File> getSASs() {
+    public ConfigurableFileCollection getSASs() {
         return this.sass;
     }
-    public void addSAS(File value) {
-        this.sass.add(value);
-    }
 
     @InputFiles
-    public Set<File> getSRGs() {
+    public ConfigurableFileCollection getSRGs() {
         return this.srgs;
-    }
-    public void addSRG(File value) {
-        this.srgs.add(value);
     }
 
     @Input
-    public List<String> getSRGLines() {
+    @Optional
+    public ListProperty<String> getSRGLines() {
         return this.srgLines;
     }
-    public void addSRGLine(String value) {
-        this.srgLines.add(value);
-    }
 
-    @Nonnull
     public NamedDomainObjectContainer<RunConfig> runs(@SuppressWarnings("rawtypes") Closure closure) {
         return runs.configure(closure);
     }
 
     @Input
-    @Nonnull
     public NamedDomainObjectContainer<RunConfig> getRuns() {
         return runs;
     }
@@ -271,6 +254,7 @@ public class GenerateUserdevConfig extends DefaultTask {
             this.processor = new DataFunction();
         return this.processor;
     }
+
     public void setProcessor(DataFunction value) {
         ensureProcessor();
         this.processor.setVersion(value.getVersion());
@@ -281,6 +265,7 @@ public class GenerateUserdevConfig extends DefaultTask {
 
     @Input
     @Optional
+    @Nullable
     public String getProcessorTool() {
         return this.processor == null ? null : this.processor.getVersion();
     }
@@ -290,6 +275,7 @@ public class GenerateUserdevConfig extends DefaultTask {
 
     @Input
     @Optional
+    @Nullable
     public String getProcessorRepo() {
         return this.processor == null ? null : this.processor.getRepo();
     }
@@ -299,6 +285,7 @@ public class GenerateUserdevConfig extends DefaultTask {
 
     @Input
     @Optional
+    @Nullable
     public List<String> getProcessorArgs() {
         return this.processor == null ? null : this.processor.getArgs();
     }
@@ -308,8 +295,8 @@ public class GenerateUserdevConfig extends DefaultTask {
 
     @InputFiles
     @Optional
-    public Collection<File> getProcessorFiles() {
-        return this.processorData.values();
+    public Provider<Collection<File>> getProcessorFiles() {
+        return this.processorData.map(Map::values);
     }
     public void addProcessorData(String key, File file) {
         this.processorData.put(key, file);
@@ -318,20 +305,14 @@ public class GenerateUserdevConfig extends DefaultTask {
 
     @Input
     @Optional
-    public String getPatchesOriginalPrefix() {
+    public Property<String> getPatchesOriginalPrefix() {
         return this.patchesOriginalPrefix;
-    }
-    public void setPatchesOriginalPrefix(String value) {
-        this.patchesOriginalPrefix = value;
     }
 
     @Input
     @Optional
-    public String getPatchesModifiedPrefix() {
+    public Property<String> getPatchesModifiedPrefix() {
         return this.patchesModifiedPrefix;
-    }
-    public void setPatchesModifiedPrefix(String value) {
-        this.patchesModifiedPrefix = value;
     }
 
     @Input
@@ -343,35 +324,24 @@ public class GenerateUserdevConfig extends DefaultTask {
     }
 
     @Input
-    public String getSourceFileEncoding() {
+    public Property<String> getSourceFileEncoding() {
         return this.sourceFileEncoding;
     }
     public void setSourceFileEncoding(Charset value) {
-        this.sourceFileEncoding = value.name();
+        this.sourceFileEncoding.set(value.name());
     }
     public void setSourceFileEncoding(String value) {
-        this.sourceFileEncoding = Charset.forName(value).name();//Load then get name to ensure valid.
+        setSourceFileEncoding(Charset.forName(value)); // Load to ensure valid charset.
     }
 
     @Input
     @Optional
-    public List<String> getUniversalFilters() {
+    public ListProperty<String> getUniversalFilters() {
         return this.universalFilters;
-    }
-    public void universalFilter(String value) {
-        this.addUniversalFilter(value);
-    }
-    public void addUniversalFilter(String value) {
-        if (universalFilters == null)
-            universalFilters = new ArrayList<>();
-        this.universalFilters.add(value);
     }
 
     @OutputFile
-    public File getOutput() {
+    public RegularFileProperty getOutput() {
         return this.output;
-    }
-    public void setOutput(File value) {
-        this.output = value;
     }
 }

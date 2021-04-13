@@ -57,6 +57,7 @@ import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.plugins.JavaPluginConvention;
+import org.gradle.api.provider.Provider;
 import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.TaskContainer;
 import org.gradle.api.tasks.TaskProvider;
@@ -595,7 +596,7 @@ public class PatcherPlugin implements Plugin<Project> {
                 setupMCP.addPreDecompile(project.getName() + "AccessTransformer", function);
                 extension.getAccessTransformers().forEach(f -> {
                     userdevJar.get().from(f, e -> e.into("ats/"));
-                    userdevConfig.get().addAT(f);
+                    userdevConfig.get().getATs().from(f);
                 });
             }
 
@@ -606,7 +607,7 @@ public class PatcherPlugin implements Plugin<Project> {
                 setupMCP.addPreDecompile(project.getName() + "SideStripper", function);
                 extension.getSideAnnotationStrippers().forEach(f -> {
                     userdevJar.get().from(f, e -> e.into("sas/"));
-                    userdevConfig.get().addSAS(f);
+                    userdevConfig.get().getSASs().from(f);
                 });
             }
 
@@ -635,28 +636,26 @@ public class PatcherPlugin implements Plugin<Project> {
             if (!extension.getExtraMappings().isEmpty()) {
                 extension.getExtraMappings().stream().filter(e -> e instanceof File).map(e -> (File) e).forEach(e -> {
                     userdevJar.get().from(e, c -> c.into("srgs/"));
-                    userdevConfig.get().addSRG(e);
+                    userdevConfig.get().getSRGs().from(e);
                 });
-                extension.getExtraMappings().stream().filter(e -> e instanceof String).map(e -> (String) e).forEach(e -> userdevConfig.get().addSRGLine(e));
+                extension.getExtraMappings().stream().filter(e -> e instanceof String).map(e -> (String) e).forEach(e -> userdevConfig.get().getSRGLines().add(e));
             }
 
             //UserDev Config Default Values
-            if (userdevConfig.get().getTool() == null) {
-                userdevConfig.get().setTool("net.minecraftforge:binarypatcher:" + genJoinedBinPatches.get().getResolvedVersion() + ":fatjar");
-                userdevConfig.get().setArguments("--clean", "{clean}", "--output", "{output}", "--apply", "{patch}");
-            }
-            if (userdevConfig.get().getUniversal() == null) {
-                userdevConfig.get().setUniversal(project.getGroup().toString() + ':' + universalJar.get().getArchiveBaseName().getOrNull() + ':' + project.getVersion() + ':' + universalJar.get().getArchiveClassifier().getOrNull() + '@' + universalJar.get().getArchiveExtension().getOrNull());
-            }
-            if (userdevConfig.get().getSource() == null) {
-                userdevConfig.get().setSource(project.getGroup().toString() + ':' + sourcesJar.get().getArchiveBaseName().getOrNull() + ':' + project.getVersion() + ':' + sourcesJar.get().getArchiveClassifier().getOrNull() + '@' + sourcesJar.get().getArchiveExtension().getOrNull());
-            }
-            if (!"a/".contentEquals(genPatches.get().getOriginalPrefix().get())) {
-                userdevConfig.get().setPatchesOriginalPrefix(genPatches.get().getOriginalPrefix().get());
-            }
-            if (!"b/".contentEquals(genPatches.get().getModifiedPrefix().get())) {
-                userdevConfig.get().setPatchesModifiedPrefix(genPatches.get().getModifiedPrefix().get());
-            }
+            GenerateUserdevConfig userdevConfigTask = userdevConfig.get();
+            userdevConfigTask.getTool().convention(genJoinedBinPatches.map(s -> "net.minecraftforge:binarypatcher:" + s.getResolvedVersion() + ":fatjar"));
+            userdevConfigTask.getArguments().convention(Arrays.asList("--clean", "{clean}", "--output", "{output}", "--apply", "{patch}"));
+            userdevConfigTask.getUniversal().convention(
+                    universalJar.flatMap(t -> t.getArchiveBaseName().flatMap(baseName -> t.getArchiveClassifier().flatMap(classifier -> t.getArchiveExtension().map(jarExt ->
+                            project.getGroup().toString() + ':' + baseName + ':' + project.getVersion() + ':' + classifier + '@' + jarExt
+                    )))));
+            userdevConfigTask.getSource().convention(
+                    sourcesJar.flatMap(t -> t.getArchiveBaseName().flatMap(baseName -> t.getArchiveClassifier().flatMap(classifier -> t.getArchiveExtension().map(jarExt ->
+                            project.getGroup().toString() + ':' + baseName + ':' + project.getVersion() + ':' + classifier + '@' + jarExt
+                    )))));
+            userdevConfigTask.getPatchesOriginalPrefix().convention(genPatches.flatMap(GeneratePatches::getOriginalPrefix));
+            userdevConfigTask.getPatchesModifiedPrefix().convention(genPatches.flatMap(GeneratePatches::getModifiedPrefix));
+
             if (procConfig != null) {
                 userdevJar.get().dependsOn(procConfig);
                 userdevConfig.get().setProcessor(extension.getProcessor());
