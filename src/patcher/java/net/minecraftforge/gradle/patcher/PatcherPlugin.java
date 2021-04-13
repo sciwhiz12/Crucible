@@ -298,8 +298,7 @@ public class PatcherPlugin implements Plugin<Project> {
             task.dependsOn(genJoinedBinPatches.get(), genClientBinPatches.get(), genServerBinPatches.get());
         });
         filterNew.configure(task -> {
-            task.dependsOn(reobfJar);
-            task.setInput(reobfJar.get().getOutput().get().getAsFile());
+            task.getInput().set(reobfJar.flatMap(t -> t.getOutput()));
         });
         /*
          * All sources in SRG names.
@@ -553,7 +552,7 @@ public class PatcherPlugin implements Plugin<Project> {
                     }
 
                     filterNew.get().dependsOn(tasks.getByName(JavaPlugin.JAR_TASK_NAME));
-                    filterNew.get().addBlacklist(((Jar) tasks.getByName(JavaPlugin.JAR_TASK_NAME)).getArchiveFile().get().getAsFile());
+                    filterNew.get().getBlacklist().from(((Jar) tasks.getByName(JavaPlugin.JAR_TASK_NAME)).getArchiveFile());
                 } else {
                     throw new IllegalStateException("Parent must either be a Patcher or MCP project");
                 }
@@ -722,8 +721,8 @@ public class PatcherPlugin implements Plugin<Project> {
                 genServerBinPatches.get().getCleanJar().set(server);
 
                 filterNew.get().dependsOn(srg);
-                filterNew.get().setSrg(srg.get().getOutput().get().getAsFile());
-                filterNew.get().addBlacklist(joined);
+                filterNew.get().getSrg().set(srg.flatMap(GenerateSRG::getOutput));
+                filterNew.get().getBlacklist().from(joined);
             }
 
             Map<String, String> tokens = new HashMap<>();
