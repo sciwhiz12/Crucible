@@ -136,24 +136,23 @@ public class JarExec extends DefaultTask {
         // prevent nulls
         normalReplacements = normalReplacements != null ? normalReplacements : Collections.emptyMap();
         multiReplacements = multiReplacements != null ? multiReplacements : ImmutableMultimap.of();
-        if (normalReplacements.isEmpty() || multiReplacements.isEmpty()) return args;
+        if (normalReplacements.isEmpty() && multiReplacements.isEmpty()) return args;
 
         ArrayList<String> newArgs = new ArrayList<>(args.size());
 
         // normalReplacements, it is a normal token substitution
         // multiReplacements, it will take the previous token and prepend that to each value for the token
 
-        String prevArg = null;
         for (String arg : args) {
             if (multiReplacements.containsKey(arg)) {
+                String prefix = newArgs.size() > 1 ? newArgs.remove(newArgs.size() - 1) : null;
                 for (Object value : multiReplacements.get(arg)) {
-                    if (prevArg != null) newArgs.add(prevArg);
+                    if (prefix != null) newArgs.add(prefix);
                     newArgs.add(toString(value));
                 }
             } else {
                 newArgs.add(toString(normalReplacements.getOrDefault(arg, arg)));
             }
-            prevArg = arg;
         }
 
         return newArgs;
