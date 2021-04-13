@@ -181,7 +181,7 @@ public class UserDevPlugin implements Plugin<Project> {
         });
         downloadAssets.configure(task -> {
             task.dependsOn(downloadMCMeta.get());
-            task.setMeta(downloadMCMeta.get().getOutput().get().getAsFile());
+            task.getMeta().set(downloadMCMeta.flatMap(DownloadMCMeta::getOutput));
         });
 
         final boolean doingUpdate = project.hasProperty(UPDATE_MAPPINGS_VERSION_PROPERTY);

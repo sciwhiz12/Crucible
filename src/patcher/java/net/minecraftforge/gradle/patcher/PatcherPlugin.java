@@ -212,7 +212,7 @@ public class PatcherPlugin implements Plugin<Project> {
         });
         downloadAssets.configure(task -> {
             task.dependsOn(dlMCMetaConfig.get());
-            task.setMeta(dlMCMetaConfig.get().getOutput().getAsFile().get());
+            task.getMeta().set(dlMCMetaConfig.flatMap(DownloadMCMeta::getOutput));
         });
         applyPatches.configure(task -> {
             task.getOutput().set(project.getLayout().getBuildDirectory().dir(task.getName()).map(d -> d.file("output.zip")));
