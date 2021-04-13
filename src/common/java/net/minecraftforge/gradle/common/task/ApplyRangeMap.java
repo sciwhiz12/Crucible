@@ -20,6 +20,8 @@
 
 package net.minecraftforge.gradle.common.task;
 
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableMultimap;
 import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.tasks.Input;
@@ -28,12 +30,7 @@ import org.gradle.api.tasks.InputFiles;
 import org.gradle.api.tasks.OutputFile;
 import net.minecraftforge.gradle.common.util.Utils;
 
-import java.io.File;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 public class ApplyRangeMap extends JarExec {
     private final ConfigurableFileCollection srgs;
@@ -58,34 +55,16 @@ public class ApplyRangeMap extends JarExec {
 
     @Override
     protected List<String> filterArgs(List<String> args) {
-        Map<String, String> replace = new HashMap<>();
-        replace.put("{range}", getRangeMap().get().getAsFile().getAbsolutePath());
-        replace.put("{output}", getOutput().get().getAsFile().getAbsolutePath());
-        replace.put("{annotate}", getAnnotate() ? "true" : "false");
-        replace.put("{keepImports}", getKeepImports() ? "true" : "false");
-
-        List<String> _args = new ArrayList<>();
-        for (String arg : args) {
-            if ("{input}".equals(arg))
-                expand(_args, getSources().getFiles());
-            else if ("{srg}".equals(arg))
-                expand(_args, getSrgFiles().getFiles());
-            else if ("{exc}".equals(arg))
-                expand(_args, getExcFiles().getFiles());
-            else
-                _args.add(replace.getOrDefault(arg, arg));
-        }
-        return _args;
-    }
-
-    private void expand(List<String> _args, Collection<File> files)
-    {
-        String prefix = _args.get(_args.size() - 1);
-        _args.remove(_args.size() - 1);
-        files.forEach(f -> {
-            _args.add(prefix);
-            _args.add(f.getAbsolutePath());
-        });
+        return replaceArgs(args, ImmutableMap.of(
+                "{range}", rangeMap.get().getAsFile(),
+                "{output}", output.get().getAsFile(),
+                "{annotate}", annotate,
+                "{keepImports}", keepImports
+        ), ImmutableMultimap.<String, Object>builder()
+                .putAll("{input}", sources.getFiles())
+                .putAll("{srg}", srgs.getFiles())
+                .putAll("{exc}", excs.getFiles()).build()
+        );
     }
 
     @InputFiles

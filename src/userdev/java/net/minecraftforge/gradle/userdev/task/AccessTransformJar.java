@@ -20,6 +20,7 @@
 
 package net.minecraftforge.gradle.userdev.task;
 
+import com.google.common.collect.ImmutableMap;
 import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.tasks.InputFile;
@@ -29,10 +30,7 @@ import org.gradle.api.tasks.OutputFile;
 import net.minecraftforge.gradle.common.task.JarExec;
 import net.minecraftforge.gradle.common.util.Utils;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 public class AccessTransformJar extends JarExec {
     private final RegularFileProperty input;
@@ -50,16 +48,14 @@ public class AccessTransformJar extends JarExec {
 
     @Override
     protected List<String> filterArgs(List<String> args) {
-        Map<String, String> replace = new HashMap<>();
-        replace.put("{input}", getInput().get().getAsFile().getAbsolutePath());
-        replace.put("{output}", getOutput().get().getAsFile().getAbsolutePath());
-
-        List<String> ret = args.stream().map(arg -> replace.getOrDefault(arg, arg)).collect(Collectors.toList());
+        List<String> newArgs = replaceArgs(args, ImmutableMap.of(
+                        "{input}", input.get().getAsFile().getAbsolutePath(),
+                        "{output}", output.get().getAsFile().getAbsolutePath()), null);
         ats.forEach(f -> {
-            ret.add("--atFile");
-            ret.add(f.getAbsolutePath());
+            newArgs.add("--atFile");
+            newArgs.add(f.getAbsolutePath());
         });
-        return ret;
+        return newArgs;
     }
 
     @InputFiles

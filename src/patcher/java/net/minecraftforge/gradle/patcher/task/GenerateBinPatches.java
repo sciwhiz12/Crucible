@@ -20,6 +20,8 @@
 
 package net.minecraftforge.gradle.patcher.task;
 
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableMultimap;
 import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.provider.MapProperty;
@@ -34,10 +36,7 @@ import net.minecraftforge.gradle.common.task.JarExec;
 import net.minecraftforge.gradle.common.util.Utils;
 
 import java.io.File;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 public class GenerateBinPatches extends JarExec {
     private final RegularFileProperty cleanJar;
@@ -64,27 +63,14 @@ public class GenerateBinPatches extends JarExec {
 
     @Override
     protected List<String> filterArgs(List<String> args) {
-        Map<String, String> replace = new HashMap<>();
-        replace.put("{clean}", getCleanJar().get().getAsFile().getAbsolutePath());
-        replace.put("{dirty}", getDirtyJar().get().getAsFile().getAbsolutePath());
-        replace.put("{output}", getOutput().get().getAsFile().getAbsolutePath());
-        replace.put("{srg}", getSrg().get().getAsFile().getAbsolutePath());
-        this.extras.get().forEach((k,v) -> replace.put('{' + k + '}', v.getAbsolutePath()));
-
-        List<String> _args = new ArrayList<>();
-        for (String arg : args) {
-            if ("{patches}".equals(arg)) {
-                String prefix = _args.get(_args.size() - 1);
-                _args.remove(_args.size() - 1);
-                getPatchSets().forEach(f -> {
-                   _args.add(prefix);
-                   _args.add(f.getAbsolutePath());
-                });
-            } else {
-                _args.add(replace.getOrDefault(arg, arg));
-            }
-        }
-        return _args;
+        return replaceArgs(args, ImmutableMap.of(
+                "{clean}", cleanJar.get().getAsFile(),
+                "{dirty}", dirtyJar.get().getAsFile(),
+                "{output}", output.get().getAsFile(),
+                "{srg}", srg.get().getAsFile()
+                ), ImmutableMultimap.<String, Object>builder()
+                        .putAll("{patches}", patchSets.getFiles()).build()
+        );
     }
 
     @InputFile

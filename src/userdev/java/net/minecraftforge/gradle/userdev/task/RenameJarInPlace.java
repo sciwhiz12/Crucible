@@ -22,11 +22,10 @@ package net.minecraftforge.gradle.userdev.task;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableMultimap;
 import org.apache.commons.io.FileUtils;
 import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.file.RegularFile;
@@ -58,27 +57,13 @@ public class RenameJarInPlace extends JarExec {
 
     @Override
     protected List<String> filterArgs(List<String> args) {
-
-        Map<String, String> replace = new HashMap<>();
-        replace.put("{input}", getInput().get().getAsFile().getAbsolutePath());
-        replace.put("{output}", temp.get().getAsFile().getAbsolutePath());
-
-        List<String> _args = new ArrayList<>();
-        for (String arg : args) {
-            if ("{mappings}".equals(arg)) {
-                String prefix = _args.get(_args.size() - 1);
-                _args.add(getMappings().get().getAsFile().getAbsolutePath());
-
-                getExtraMappings().forEach(f -> {
-                   _args.add(prefix);
-                   _args.add(f.getAbsolutePath());
-                });
-            } else {
-                _args.add(replace.getOrDefault(arg, arg));
-            }
-        }
-
-        return _args;
+        return replaceArgs(args, ImmutableMap.of(
+                "{input}", input.get().getAsFile(),
+                "{output}", temp.get().getAsFile()
+                ), ImmutableMultimap.<String, Object>builder()
+                        .put("{mappings}", mappings.get().getAsFile())
+                        .putAll("{mappings}", extraMappings.getFiles()).build()
+        );
     }
 
     @Override

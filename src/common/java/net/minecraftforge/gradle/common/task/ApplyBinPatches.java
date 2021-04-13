@@ -20,16 +20,14 @@
 
 package net.minecraftforge.gradle.common.task;
 
+import com.google.common.collect.ImmutableMap;
 import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.tasks.InputFile;
 import org.gradle.api.tasks.OutputFile;
 
 import net.minecraftforge.gradle.common.util.Utils;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 public class ApplyBinPatches extends JarExec {
     private final RegularFileProperty clean;
@@ -49,12 +47,10 @@ public class ApplyBinPatches extends JarExec {
 
     @Override
     protected List<String> filterArgs(List<String> args) {
-        Map<String, String> replace = new HashMap<>();
-        replace.put("{clean}", getClean().get().getAsFile().getAbsolutePath());
-        replace.put("{output}", getOutput().get().getAsFile().getAbsolutePath());
-        replace.put("{patch}", getPatch().get().getAsFile().getAbsolutePath());
-
-        return args.stream().map(arg -> replace.getOrDefault(arg, arg)).collect(Collectors.toList());
+        return replaceArgs(args, ImmutableMap.of(
+                "{clean}", clean.get().getAsFile(),
+                "{output}", output.get().getAsFile(),
+                "{patch}", patch.get().getAsFile()), null);
     }
 
     @InputFile

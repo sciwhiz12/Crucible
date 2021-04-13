@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import com.google.common.collect.ImmutableMap;
 import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.provider.MapProperty;
 import org.gradle.api.tasks.InputFile;
@@ -47,12 +48,12 @@ public class DynamicJarExec extends JarExec {
 
     @Override
     protected List<String> filterArgs(List<String> args) {
-        Map<String, String> replace = new HashMap<>();
-        replace.put("{input}", getInput().get().getAsFile().getAbsolutePath());
-        replace.put("{output}", getOutput().get().getAsFile().getAbsolutePath());
+        ImmutableMap.Builder<String, Object> replace = ImmutableMap.builder();
+        replace.put("{input}", input.get().getAsFile());
+        replace.put("{output}", output.get().getAsFile());
         data.get().forEach((key,value) -> replace.put('{' + key + '}', value.getAbsolutePath()));
 
-        return args.stream().map(arg -> replace.getOrDefault(arg, arg)).collect(Collectors.toList());
+        return replaceArgs(args, replace.build(), null);
     }
 
 	@InputFiles

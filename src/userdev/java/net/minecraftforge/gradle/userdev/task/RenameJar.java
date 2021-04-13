@@ -20,6 +20,8 @@
 
 package net.minecraftforge.gradle.userdev.task;
 
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableMultimap;
 import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.tasks.InputFile;
@@ -30,10 +32,7 @@ import org.gradle.api.tasks.OutputFile;
 import net.minecraftforge.gradle.common.task.JarExec;
 import net.minecraftforge.gradle.common.util.Utils;
 
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 public class RenameJar extends JarExec {
     private final RegularFileProperty input;
@@ -53,27 +52,13 @@ public class RenameJar extends JarExec {
 
     @Override
     protected List<String> filterArgs(List<String> args) {
-        Map<String, String> replace = new HashMap<>();
-        replace.put("{input}", getInput().get().getAsFile().getAbsolutePath());
-        replace.put("{output}", getOutput().get().getAsFile().getAbsolutePath());
-        replace.put("{mappings}", getMappings().get().getAsFile().getAbsolutePath());
-
-        List<String> _args = new ArrayList<>();
-        for (String arg : args) {
-            if ("{mappings}".equals(arg)) {
-                String prefix = _args.get(_args.size() - 1);
-                _args.add(getMappings().get().getAsFile().getAbsolutePath());
-
-                getExtraMappings().forEach(f -> {
-                   _args.add(prefix);
-                   _args.add(f.getAbsolutePath());
-                });
-            } else {
-                _args.add(replace.getOrDefault(arg, arg));
-            }
-        }
-
-        return _args;
+        return replaceArgs(args, ImmutableMap.of(
+                "{input}", input.get().getAsFile(),
+                "{output}", output.get().getAsFile()
+                ), ImmutableMultimap.<String, Object>builder()
+                        .put("{mappings}", mappings.get().getAsFile())
+                        .putAll("{mappings}", extraMappings.getFiles()).build()
+        );
     }
 
     @InputFile

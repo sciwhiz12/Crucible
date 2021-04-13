@@ -21,10 +21,8 @@
 package net.minecraftforge.gradle.common.task;
 
 import java.util.List;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.stream.Collectors;
 
+import com.google.common.collect.ImmutableMap;
 import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.tasks.*;
@@ -47,16 +45,14 @@ public class ExtractInheritance extends JarExec {
     }
     @Override
     protected List<String> filterArgs(List<String> args) {
-        Map<String, String> replace = new HashMap<>();
-        replace.put("{input}", getInput().get().getAsFile().getAbsolutePath());
-        replace.put("{output}", getOutput().get().getAsFile().getAbsolutePath());
-
-        List<String> ret = args.stream().map(arg -> replace.getOrDefault(arg, arg)).collect(Collectors.toList());
+        List<String> newArgs = replaceArgs(args, ImmutableMap.of(
+                "{input}", input.get().getAsFile(),
+                "{output}", output.get().getAsFile()), null);
         getLibraries().forEach(f -> {
-            ret.add("--lib");
-            ret.add(f.getAbsolutePath());
+            newArgs.add("--lib");
+            newArgs.add(f.getAbsolutePath());
         });
-        return ret;
+        return newArgs;
     }
 
 

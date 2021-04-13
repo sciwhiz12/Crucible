@@ -20,11 +20,9 @@
 
 package net.minecraftforge.gradle.userdev.task;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
+import com.google.common.collect.ImmutableMap;
 import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.tasks.InputFile;
 import org.gradle.api.tasks.OutputFile;
@@ -49,13 +47,11 @@ public class RenameJarSrg2Mcp extends JarExec {
 
     @Override
     protected List<String> filterArgs(List<String> args) {
-        Map<String, String> replace = new HashMap<>();
-        replace.put("{input}", getInput().get().getAsFile().getAbsolutePath());
-        replace.put("{output}", getOutput().get().getAsFile().getAbsolutePath());
-        replace.put("{mappings}", getMappings().get().getAsFile().getAbsolutePath());
-        replace.put("{strip}", getSignatureRemoval()? "--strip-signatures" : "");
-
-        return args.stream().map(arg -> replace.getOrDefault(arg, arg)).filter(it -> !it.isEmpty()).collect(Collectors.toList());
+        return replaceArgs(args, ImmutableMap.of(
+                "{input}", input.get().getAsFile(),
+                "{output}", output.get().getAsFile(),
+                "{mappings}", mappings.get().getAsFile(),
+                "{strip}", signatureRemoval ? "--strip-signatures" : ""), null);
     }
 
     public boolean getSignatureRemoval() {

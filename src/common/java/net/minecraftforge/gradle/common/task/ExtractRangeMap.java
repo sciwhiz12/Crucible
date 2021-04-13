@@ -20,11 +20,10 @@
 
 package net.minecraftforge.gradle.common.task;
 
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableMultimap;
 import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.provider.Property;
@@ -55,32 +54,14 @@ public class ExtractRangeMap extends JarExec {
 
     @Override
     protected List<String> filterArgs(List<String> args) {
-        Map<String, String> replace = new HashMap<>();
-        replace.put("{compat}", getSourceCompatibility().get());
-        replace.put("{output}", getOutput().get().getAsFile().getAbsolutePath());
-        replace.put("{batched}", getBatch() ? "true" : "false");
-
-        List<String> _args = new ArrayList<>();
-        for (String arg : args) {
-            if ("{library}".equals(arg)) {
-                String prefix = _args.get(_args.size() - 1);
-                _args.remove(_args.size() - 1);
-                getDependencies().forEach(f -> {
-                    _args.add(prefix);
-                    _args.add(f.getAbsolutePath());
-                });
-            } else if ("{input}".equals(arg)) {
-                String prefix = _args.get(_args.size() - 1);
-                _args.remove(_args.size() - 1);
-                getSources().forEach(f -> {
-                   _args.add(prefix);
-                   _args.add(f.getAbsolutePath());
-                });
-            } else {
-                _args.add(replace.getOrDefault(arg, arg));
-            }
-        }
-        return _args;
+        return replaceArgs(args, ImmutableMap.of(
+                "{compat}", sourceCompatibility.get(),
+                "{output}", output.get().getAsFile(),
+                "{batched}", batch
+        ), ImmutableMultimap.<String, Object>builder()
+                .putAll("{input}", sources.getFiles())
+                .putAll("{library}", dependencies.getFiles()).build()
+        );
     }
 
     @InputFiles

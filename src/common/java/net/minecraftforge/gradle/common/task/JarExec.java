@@ -26,11 +26,15 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintWriter;
-import java.util.List;
+import java.nio.file.Path;
+import java.util.*;
 import java.util.jar.Attributes;
 import java.util.jar.JarFile;
 import java.util.stream.Collectors;
 
+import com.google.common.collect.ImmutableMultimap;
+import com.google.common.collect.Multimap;
+import com.google.common.collect.Multimaps;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.provider.ListProperty;
@@ -43,6 +47,8 @@ import org.gradle.api.tasks.Optional;
 import org.gradle.api.tasks.TaskAction;
 
 import net.minecraftforge.gradle.common.util.MavenArtifactDownloader;
+
+import javax.annotation.Nullable;
 
 public class JarExec extends DefaultTask {
     private static final OutputStream NULL = new OutputStream() { @Override public void write(int b) throws IOException { } };
@@ -124,6 +130,42 @@ public class JarExec extends DefaultTask {
     }
 
     protected void postProcess(File log) {
+    }
+
+    protected List<String> replaceArgs(List<String> args, @Nullable Map<String, Object> normalReplacements, @Nullable Multimap<String, Object> multiReplacements) {
+        // prevent nulls
+        normalReplacements = normalReplacements != null ? normalReplacements : Collections.emptyMap();
+        multiReplacements = multiReplacements != null ? multiReplacements : ImmutableMultimap.of();
+        if (normalReplacements.isEmpty() || multiReplacements.isEmpty()) return args;
+
+        ArrayList<String> newArgs = new ArrayList<>(args.size());
+
+        // normalReplacements, it is a normal token substitution
+        // multiReplacements, it will take the previous token and prepend that to each value for the token
+
+        String prevArg = null;
+        for (String arg : args) {
+            if (multiReplacements.containsKey(arg)) {
+                for (Object value : multiReplacements.get(arg)) {
+                    if (prevArg != null) newArgs.add(prevArg);
+                    newArgs.add(toString(value));
+                }
+            } else {
+                newArgs.add(toString(normalReplacements.getOrDefault(arg, arg)));
+            }
+            prevArg = arg;
+        }
+
+        return args;
+    }
+
+    private String toString(Object obj) {
+        if (obj instanceof File) {
+            return ((File) obj).getAbsolutePath();
+        } else if (obj instanceof Path) {
+            return ((Path) obj).toAbsolutePath().toString();
+        }
+        return Objects.toString(obj);
     }
 
     public String getResolvedVersion() {

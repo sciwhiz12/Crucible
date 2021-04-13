@@ -37,20 +37,15 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 public class ApplyMCPFunction extends JarExec {
-    private static final Pattern REPLACE_PATTERN = Pattern.compile("^\\{(\\w+)\\}$");
-
     private final RegularFileProperty input;
     private final RegularFileProperty output;
     private final RegularFileProperty mcp;
     private final Property<String> functionName;
-    private final Map<String, String> replacements = new HashMap<>();
+    private final Map<String, Object> replacements = new HashMap<>();
 
     public ApplyMCPFunction() {
         input = getProject().getObjects().fileProperty();
@@ -71,36 +66,40 @@ public class ApplyMCPFunction extends JarExec {
 
         try (ZipFile zip = new ZipFile(mcp)) {
             function.getArgs().forEach(arg -> {
-                Matcher matcher = REPLACE_PATTERN.matcher(arg);
-                String argName = matcher.find() ? matcher.group(1) : null;
-                if (argName == null) return;
+                // A token must start with {, end with }, and be at least 3 large ("{x}")
+                if (arg.length() < 2 || !arg.startsWith("{") || !arg.endsWith("}")) return;
+                String argName = arg.substring(1, arg.length() - 1);
 
-                if (argName.equals("input")) {
-                    replacements.put(arg, getInput().get().getAsFile().getAbsolutePath());
-                }
-                else if (argName.equals("output")) {
-                    replacements.put(arg, getOutput().get().getAsFile().getAbsolutePath());
-                }
-                else if (argName.equals("log")) {
-                    replacements.put(arg, getOutput().get().getAsFile().getAbsolutePath() + ".log");
-                }
-                else {
-                    Object referencedData = config.getData().get(argName);
-                    if (referencedData instanceof String) {
-                        ZipEntry entry = zip.getEntry((String)referencedData);
-                        if (entry == null) return;
-                        String entryName = entry.getName();
+                switch (argName) {
+                    case "input":
+                        replacements.put(arg, getInput().get().getAsFile().getAbsolutePath());
+                        break;
+                    case "output":
+                        replacements.put(arg, getOutput().get().getAsFile().getAbsolutePath());
+                        break;
+                    case "log":
+                        replacements.put(arg, getOutput().get().getAsFile().getAbsolutePath() + ".log");
+                        break;
+                    default:
+                        Object referencedData = config.getData().get(argName);
+                        if (referencedData instanceof String) {
+                            ZipEntry entry = zip.getEntry((String) referencedData);
+                            if (entry == null) return;
+                            String entryName = entry.getName();
 
-                        try {
-                            File data = makeFile(entry.getName());
-                            if (entry.isDirectory()) {
-                                Utils.extractDirectory(this::makeFile, zip, entryName);
-                            } else {
-                                Utils.extractFile(zip, entry, data);
+                            try {
+                                File data = makeFile(entry.getName());
+                                if (entry.isDirectory()) {
+                                    Utils.extractDirectory(this::makeFile, zip, entryName);
+                                } else {
+                                    Utils.extractFile(zip, entry, data);
+                                }
+                                replacements.put(arg, data.getAbsolutePath());
+                            } catch (IOException e) {
+                                getLogger().debug("Exception while extracting referenced data for token {} in task {}", arg, getName(), e);
                             }
-                            replacements.put(arg, data.getAbsolutePath());
-                        } catch (IOException ignored) {}
-                    }
+                        }
+                        break;
                 }
             });
         }
@@ -110,7 +109,7 @@ public class ApplyMCPFunction extends JarExec {
 
     @Override
     protected List<String> filterArgs(List<String> args) {
-        return args.stream().map(arg -> replacements.getOrDefault(arg, arg)).collect(Collectors.toList());
+        return replaceArgs(args, replacements, null);
     }
 
     @InputFile
