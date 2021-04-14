@@ -1,5 +1,6 @@
 package net.minecraftforge.gradle.common;
 
+import net.minecraftforge.gradle.common.util.EnvironmentChecks;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.repositories.MavenArtifactRepository;
@@ -10,7 +11,7 @@ public class FGBasePlugin implements Plugin<Project> {
     @Override
     public void apply(Project project) {
 
-        Utils.checkEnvironment();
+        EnvironmentChecks.checkEnvironment(project);
 
         // Add known repos: Forge, Mojang, Maven Central
 
