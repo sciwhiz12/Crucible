@@ -85,20 +85,23 @@ public class ApplyPatches extends DefaultTask {
         }
 
         Path outputPath = output.get().getAsFile().toPath();
-        outputFormat.convention(getProject().provider(() -> ArchiveFormat.findFormat(outputPath.getFileName())));
+        ArchiveFormat outputFormat = this.outputFormat.getOrNull();
+        if (outputFormat == null) {
+            outputFormat = ArchiveFormat.findFormat(outputPath.getFileName());
+        }
 
-        Path rejectsPath = null;
-        if (rejects.isPresent()) {
-            rejectsPath = rejects.get().toPath();
-            rejectsFormat.convention(getProject().provider(() -> ArchiveFormat.findFormat(rejects.get().toPath().getFileName())));
+        Path rejectsPath = rejects.map(File::toPath).getOrNull();
+        ArchiveFormat rejectsFormat = this.outputFormat.getOrNull();
+        if (rejectsFormat == null) {
+            rejectsFormat = ArchiveFormat.findFormat(rejectsPath.getFileName());
         }
 
         PatchOperation.Builder builder = PatchOperation.builder()
                 .logTo(new LoggingOutputStream(getLogger(), LogLevel.LIFECYCLE))
                 .basePath(base.get().toPath())
                 .patchesPath(patches.get().getAsFile().toPath())
-                .outputPath(outputPath, outputFormat.getOrNull())
-                .rejectsPath(rejectsPath, rejectsFormat.getOrNull())
+                .outputPath(outputPath, outputFormat)
+                .rejectsPath(rejectsPath, rejectsFormat)
                 .verbose(verbose)
                 .summary(printSummary)
                 .mode(patchMode.get())

@@ -53,8 +53,7 @@ public class GeneratePatches extends DefaultTask {
         base = objects.fileProperty();
         modified = objects.fileProperty();
         output = objects.directoryProperty();
-        outputFormat = objects.property(ArchiveFormat.class)
-                .convention(output.map(s -> ArchiveFormat.findFormat(s.getAsFile().toPath().getFileName())));
+        outputFormat = objects.property(ArchiveFormat.class);
         originalPrefix = objects.property(String.class)
                 .convention("a/");
         modifiedPrefix = objects.property(String.class)
@@ -69,11 +68,16 @@ public class GeneratePatches extends DefaultTask {
         getProject().getLogger().info("Base: {}", basePath);
         getProject().getLogger().info("Modified: {}", modifiedPath);
 
+        ArchiveFormat outputFormat = this.outputFormat.getOrNull();
+        if (outputFormat == null) {
+            outputFormat = ArchiveFormat.findFormat(outputPath.getFileName());
+        }
+
         DiffOperation.Builder builder = DiffOperation.builder()
                 .logTo(new LoggingOutputStream(getLogger(), LogLevel.LIFECYCLE))
                 .aPath(basePath)
                 .bPath(modifiedPath)
-                .outputPath(outputPath, outputFormat.getOrNull())
+                .outputPath(outputPath, outputFormat)
                 .autoHeader(autoHeader)
                 .verbose(verbose)
                 .summary(printSummary)
