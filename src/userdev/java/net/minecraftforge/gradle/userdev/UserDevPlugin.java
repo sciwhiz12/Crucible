@@ -21,25 +21,21 @@
 package net.minecraftforge.gradle.userdev;
 
 import javax.annotation.Nonnull;
-import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-import org.gradle.api.DefaultTask;
-import org.gradle.api.NamedDomainObjectContainer;
-import org.gradle.api.Plugin;
-import org.gradle.api.Project;
-import org.gradle.api.Task;
+import org.gradle.api.*;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.Dependency;
 import org.gradle.api.artifacts.DependencySet;
 import org.gradle.api.artifacts.ExternalModuleDependency;
+import org.gradle.api.file.SourceDirectorySet;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.plugins.BasePlugin;
 import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.plugins.JavaPluginConvention;
+import org.gradle.api.provider.Provider;
 import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.TaskProvider;
 import org.gradle.api.tasks.bundling.Jar;
@@ -99,6 +95,7 @@ public class UserDevPlugin implements Plugin<Project> {
     public static final String EXTRACT_MAPPED_TASK_NAME = "extractMappedNew";
     public static final String UPDATE_MAPPINGS_TASK_NAME = "updateMappings";
 
+    @SuppressWarnings("deprecation") // Reference to JavaPlugin.COMPILE_CONFIGURATION_NAME
     @Override
     public void apply(@Nonnull Project project) {
         project.getPlugins().apply(FGBasePlugin.class);
@@ -110,7 +107,6 @@ public class UserDevPlugin implements Plugin<Project> {
         if (project.getPluginManager().findPlugin("java") == null) {
             project.getPluginManager().apply("java");
         }
-        final File nativesFolder = project.file("build/natives/");
 
         NamedDomainObjectContainer<RenameJarInPlace> reobf = createReobfExtension(project);
 
@@ -141,26 +137,14 @@ public class UserDevPlugin implements Plugin<Project> {
         TaskProvider<DefaultTask> hideLicense = project.getTasks().register(MojangLicenseHelper.HIDE_LICENSE_TASK_NAME, DefaultTask.class);
         TaskProvider<DefaultTask> showLicense = project.getTasks().register(MojangLicenseHelper.SHOW_LICENSE_TASK_NAME, DefaultTask.class);
 
-        hideLicense.configure(task -> {
-            task.doLast(_task -> {
-                MojangLicenseHelper.hide(project, extension.getMappingChannel().get(), extension.getMappingVersion().get());
-            });
-        });
+        hideLicense.configure(task -> task.doLast(_task -> MojangLicenseHelper.hide(project, extension.getMappingChannel().get(), extension.getMappingVersion().get())));
 
-        showLicense.configure(task -> {
-            task.doLast(_task -> {
-                MojangLicenseHelper.show(project, extension.getMappingChannel().get(), extension.getMappingVersion().get());
-            });
-        });
+        showLicense.configure(task -> task.doLast(_task -> MojangLicenseHelper.show(project, extension.getMappingChannel().get(), extension.getMappingVersion().get())));
 
-        extractSrg.configure(task -> {
-            task.dependsOn(downloadMcpConfig);
-            task.getConfig().set(downloadMcpConfig.get().getOutput());
-        });
+        extractSrg.configure(task -> task.getConfig().set(downloadMcpConfig.flatMap(DownloadMavenArtifact::getOutput)));
 
         createSrgToMcp.configure(task -> {
             task.setReverse(false);
-            task.dependsOn(extractSrg);
             task.getSrg().set(extractSrg.flatMap(ExtractMCPData::getOutput));
             task.getMappings().set(extension.getMappings());
             task.getFormat().set(IMappingFile.Format.SRG);
@@ -169,20 +153,15 @@ public class UserDevPlugin implements Plugin<Project> {
 
         createMcpToSrg.configure(task -> {
             task.setReverse(true);
-            task.dependsOn(extractSrg);
             task.getSrg().set(extractSrg.flatMap(ExtractMCPData::getOutput));
             task.getMappings().set(extension.getMappings());
         });
 
         extractNatives.configure(task -> {
-            task.dependsOn(downloadMCMeta.get());
             task.getMeta().set(downloadMCMeta.flatMap(DownloadMCMeta::getOutput));
-            task.getOutput().set(nativesFolder);
+            task.getOutput().set(project.getLayout().getBuildDirectory().dir("natives"));
         });
-        downloadAssets.configure(task -> {
-            task.dependsOn(downloadMCMeta.get());
-            task.getMeta().set(downloadMCMeta.flatMap(DownloadMCMeta::getOutput));
-        });
+        downloadAssets.configure(task -> task.getMeta().set(downloadMCMeta.flatMap(DownloadMCMeta::getOutput)));
 
         final boolean doingUpdate = project.hasProperty(UPDATE_MAPPINGS_VERSION_PROPERTY);
         final String updateVersion = doingUpdate ? (String)project.property(UPDATE_MAPPINGS_VERSION_PROPERTY) : null;
@@ -192,9 +171,10 @@ public class UserDevPlugin implements Plugin<Project> {
         if (doingUpdate) {
             logger.lifecycle("This process uses Srg2Source for java source file renaming. Please forward relevant bug reports to https://github.com/MinecraftForge/Srg2Source/issues.");
 
-            JavaCompile javaCompile = (JavaCompile) project.getTasks().getByName(JavaPlugin.COMPILE_JAVA_TASK_NAME);
+            TaskProvider<JavaCompile> javaCompile = project.getTasks().named(JavaPlugin.COMPILE_JAVA_TASK_NAME, JavaCompile.class);
             JavaPluginConvention javaConv = (JavaPluginConvention) project.getConvention().getPlugins().get("java");
-            Set<File> srcDirs = javaConv.getSourceSets().getByName(SourceSet.MAIN_SOURCE_SET_NAME).getJava().getSrcDirs();
+            NamedDomainObjectProvider<SourceSet> mainSource = javaConv.getSourceSets().named(SourceSet.MAIN_SOURCE_SET_NAME);
+            Provider<SourceDirectorySet> srcDirs = mainSource.map(SourceSet::getJava);
 
             TaskProvider<DownloadMCPMappings> dlMappingsNew = project.getTasks().register(DOWNLOAD_NEW_MAPPINGS_TASK_NAME, DownloadMCPMappings.class);
             TaskProvider<ExtractRangeMap> extractRangeConfig = project.getTasks().register(EXTRACT_RANGE_MAP_TASK_NAME, ExtractRangeMap.class);
@@ -204,12 +184,11 @@ public class UserDevPlugin implements Plugin<Project> {
 
             extractRangeConfig.configure(task -> {
                 task.getSources().from(srcDirs);
-                task.getDependencies().from(javaCompile.getClasspath());
+                task.getDependencies().from(javaCompile.map(JavaCompile::getClasspath));
             });
 
             applyRangeConfig.configure(task -> {
-                task.dependsOn(extractRangeConfig, createMcpToSrg);
-                task.getRangeMap().set(extractRangeConfig.get().getOutput());
+                task.getRangeMap().set(extractRangeConfig.flatMap(ExtractRangeMap::getOutput));
                 task.getSrgFiles().from(createMcpToSrg.flatMap(GenerateSRG::getOutput));
                 task.getSources().from(srcDirs);
             });
@@ -221,17 +200,17 @@ public class UserDevPlugin implements Plugin<Project> {
 
             toMCPNew.configure(task -> {
                 task.dependsOn(dlMappingsNew, applyRangeConfig);
-                task.getInput().set(applyRangeConfig.get().getOutput());
-                task.getOutput().set(dlMappingsNew.get().getOutput());
+                task.getInput().set(applyRangeConfig.flatMap(ApplyRangeMap::getOutput));
+                task.getOutput().set(dlMappingsNew.flatMap(DownloadMCPMappings::getOutput));
             });
 
             extractMappedNew.configure(task -> {
                 task.getArchive().set(toMCPNew.flatMap(ApplyMappings::getOutput));
-                srcDirs.forEach(task.getTargets()::from);
+                task.getTargets().from(srcDirs);
             });
 
             TaskProvider<DefaultTask> updateMappings = project.getTasks().register(UPDATE_MAPPINGS_TASK_NAME, DefaultTask.class);
-            updateMappings.get().dependsOn(extractMappedNew);
+            updateMappings.configure(t -> t.dependsOn(extractMappedNew));
         }
 
         project.afterEvaluate(p -> {
@@ -250,15 +229,15 @@ public class UserDevPlugin implements Plugin<Project> {
                 String newDep = mcrepo.getDependencyString();
                 //p.getLogger().lifecycle("New Dep: " + newDep);
                 ExternalModuleDependency ext = (ExternalModuleDependency) p.getDependencies().create(newDep);
-                {
-                    if (MinecraftUserRepo.CHANGING_USERDEV)
-                        ext.setChanging(true);
-                    minecraft.resolutionStrategy(strat -> {
-                        strat.cacheChangingModulesFor(10, TimeUnit.SECONDS);
-                    });
-                }
-                minecraft.getDependencies().add(ext);
+                if (MinecraftUserRepo.CHANGING_USERDEV)
+                    ext.setChanging(true);
+                minecraft.resolutionStrategy(strat -> strat.cacheChangingModulesFor(10, TimeUnit.SECONDS));
+                deps.add(ext);
             }
+            MojangLicenseHelper.displayWarning(p, extension.getMappingChannel().get(), extension.getMappingVersion().get(), updateChannel, updateVersion);
+
+            if (mcrepo == null)
+                throw new IllegalStateException("Missing 'minecraft' dependency entry.");
 
             if (!internalObfConfiguration.getDependencies().isEmpty()) {
                 deobfrepo = new DeobfuscatingRepo(project, internalObfConfiguration, deobfuscator);
@@ -276,20 +255,14 @@ public class UserDevPlugin implements Plugin<Project> {
                     .add(MinecraftRepo.create(project)) //Provides vanilla extra/slim/data jars. These don't care about OBF names.
                     .attach(project);
 
-            MojangLicenseHelper.displayWarning(p, extension.getMappingChannel().get(), extension.getMappingVersion().get(), updateChannel, updateVersion);
-
-            if (mcrepo == null)
-                throw new IllegalStateException("Missing 'minecraft' dependency entry.");
             mcrepo.validate(minecraft, extension.getRuns().getAsMap(), extractNatives.get(), downloadAssets.get(), createSrgToMcp.get()); //This will set the MC_VERSION property.
 
             String mcVer = (String) project.getExtensions().getExtraProperties().get(MC_VERSION_EXT_PROPERTY);
             String mcpVer = (String) project.getExtensions().getExtraProperties().get(MCP_VERSION_EXT_PROPERTY);
-            downloadMcpConfig.get().setArtifact("de.oceanlabs.mcp:mcp_config:" + mcpVer + "@zip");
-            downloadMCMeta.get().getMCVersion().set(mcVer);
+            downloadMcpConfig.configure(t -> t.setArtifact("de.oceanlabs.mcp:mcp_config:" + mcpVer + "@zip"));
+            downloadMCMeta.configure(t -> t.getMCVersion().set(mcVer));
 
-            RenameJarInPlace reobfJar = reobf.create(JavaPlugin.JAR_TASK_NAME);
-            reobfJar.dependsOn(createMcpToSrg);
-            reobfJar.getMappings().set(createMcpToSrg.flatMap(GenerateSRG::getOutput));
+            reobf.register(JavaPlugin.JAR_TASK_NAME);
 
             String assetIndex = mcVer;
 
@@ -323,12 +296,10 @@ public class UserDevPlugin implements Plugin<Project> {
             final RenameJarInPlace task = project.getTasks().maybeCreate("reobf" + name, RenameJarInPlace.class);
             task.getClasspath().from(java.getSourceSets().getByName(SourceSet.MAIN_SOURCE_SET_NAME).getCompileClasspath());
 
-            final Task createMcpToSrg = project.getTasks().findByName(CREATE_MCP_TO_SRG_TASK_NAME);
-            if (createMcpToSrg != null) {
-                task.getMappings().set(createMcpToSrg.getOutputs().getFiles().getSingleFile());
-            }
+            TaskProvider<GenerateSRG> createMcpToSrg = project.getTasks().named(CREATE_MCP_TO_SRG_TASK_NAME, GenerateSRG.class);
+            task.getMappings().set(createMcpToSrg.flatMap(GenerateSRG::getOutput));
 
-            project.getTasks().getByName(BasePlugin.ASSEMBLE_TASK_NAME).dependsOn(task);
+            project.getTasks().named(BasePlugin.ASSEMBLE_TASK_NAME).configure(t -> t.dependsOn(task));
 
             // do after-Evaluate resolution, for the same of good error reporting
             project.afterEvaluate(p -> {
@@ -336,11 +307,6 @@ public class UserDevPlugin implements Plugin<Project> {
                 if (!(jar instanceof Jar))
                     throw new IllegalStateException(jarName + "  is not a jar task. Can only reobf jars!");
                 task.getInput().set(((Jar) jar).getArchiveFile());
-                task.dependsOn(jar);
-
-                if (createMcpToSrg != null && task.getMappings().equals(createMcpToSrg.getOutputs().getFiles().getSingleFile())) {
-                    task.dependsOn(createMcpToSrg); // Add needed dependency if uses default mappings
-                }
             });
 
             return task;
