@@ -49,7 +49,8 @@ public class GenerateSRG extends DefaultTask {
     public GenerateSRG() {
         srg = getProject().getObjects().fileProperty();
         mapping = getProject().getObjects().property(String.class);
-        format = getProject().getObjects().property(IMappingFile.Format.class);
+        format = getProject().getObjects().property(IMappingFile.Format.class)
+                .convention(IMappingFile.Format.TSRG);
         output = getProject().getObjects().fileProperty()
                 .convention(getProject().getLayout().getBuildDirectory().dir(getName()).map(f -> f.file("output.tsrg")));
     }
