@@ -25,10 +25,7 @@ import org.apache.commons.io.FileUtils;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.provider.Property;
-import org.gradle.api.tasks.Input;
-import org.gradle.api.tasks.InputFile;
-import org.gradle.api.tasks.OutputFile;
-import org.gradle.api.tasks.TaskAction;
+import org.gradle.api.tasks.*;
 
 import java.io.File;
 import java.io.IOException;
@@ -65,7 +62,7 @@ public class DownloadMCPConfig extends DefaultTask {
         return this.config;
     }
 
-    @InputFile
+    @Internal
     private File getConfigFile() {
         return downloadConfigFile(config.get());
     }
