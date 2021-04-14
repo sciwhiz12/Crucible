@@ -62,7 +62,8 @@ public class ReobfuscateJar extends JarExec {
 
         input = getProject().getObjects().fileProperty();
         srg = getProject().getObjects().fileProperty();
-        output = getProject().getObjects().fileProperty();
+        output = getProject().getObjects().fileProperty()
+                .convention(workDir.map(d -> d.file("output.jar")));
     }
 
     @TaskAction
