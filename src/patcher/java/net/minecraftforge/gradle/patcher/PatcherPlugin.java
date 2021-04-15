@@ -472,8 +472,8 @@ public class PatcherPlugin implements Plugin<Project> {
             // Add mappings so that it can be used by reflection tools.
             project.getDependencies().add(MINECRAFT_IMPLEMENTATION_CONFIGURATION_NAME, extension.getMappingChannel().zip(extension.getMappingVersion(), MCPRepo::getMappingDep));
 
-            dlMCMetaConfig.configure(t -> t.getMCVersion().convention(extension.getMCVersion()));
-            dlMCMetaConfig.get().getMCVersion().convention(extension.getMCVersion());
+            dlMCMetaConfig.configure(t -> t.getMCVersion().convention(extension.getMinecraftVersion()));
+            dlMCMetaConfig.get().getMCVersion().convention(extension.getMinecraftVersion());
 
             if (!extension.getAccessTransformers().isEmpty()) {
                 SetupMCP setupMCP = (SetupMCP) mcpParentProject.getTasks().getByName(MCPPlugin.SETUP_MCP_TASK_NAME);
@@ -648,7 +648,7 @@ public class PatcherPlugin implements Plugin<Project> {
                 e.printStackTrace();
 
                 // Fallback to MC version
-                tokens.put("asset_index", extension.getMCVersion().get());
+                tokens.put("asset_index", extension.getMinecraftVersion().get());
             }
 
             extension.getRuns().forEach(runConfig -> runConfig.tokens(tokens));

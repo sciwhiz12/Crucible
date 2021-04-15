@@ -33,7 +33,6 @@ import org.gradle.api.model.ObjectFactory;
 import org.gradle.api.provider.MapProperty;
 import org.gradle.api.provider.Property;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
@@ -113,7 +112,7 @@ public class PatcherExtension extends MinecraftExtension {
         return patches;
     }
 
-    public Property<String> getMCVersion() {
+    public Property<String> getMinecraftVersion() {
         return mcVersion;
     }
 
@@ -232,6 +231,6 @@ public class PatcherExtension extends MinecraftExtension {
     void copyFrom(PatcherExtension other) {
         mappingChannel.convention(other.getMappingChannel());
         mappingVersion.convention(other.getMappingVersion());
-        mcVersion.convention(other.getMCVersion());
+        mcVersion.convention(other.getMinecraftVersion());
     }
 }
