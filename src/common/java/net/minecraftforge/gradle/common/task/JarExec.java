@@ -42,13 +42,10 @@ import org.gradle.api.file.RegularFile;
 import org.gradle.api.provider.ListProperty;
 import org.gradle.api.provider.Property;
 import org.gradle.api.provider.Provider;
-import org.gradle.api.tasks.Input;
-import org.gradle.api.tasks.InputFile;
-import org.gradle.api.tasks.InputFiles;
-import org.gradle.api.tasks.Optional;
-import org.gradle.api.tasks.TaskAction;
+import org.gradle.api.tasks.*;
 
 import net.minecraftforge.gradle.common.util.MavenArtifactDownloader;
+import org.gradle.api.tasks.Optional;
 
 import javax.annotation.Nullable;
 
@@ -171,6 +168,7 @@ public class JarExec extends DefaultTask {
         return Objects.toString(obj);
     }
 
+    @Internal
     public String getResolvedVersion() {
         return resolvedVersion.get();
     }

@@ -112,11 +112,7 @@ public class UserDevPlugin implements Plugin<Project> {
         NamedDomainObjectContainer<RenameJarInPlace> reobf = createReobfExtension(project);
 
         Configuration minecraft = project.getConfigurations().maybeCreate(MINECRAFT_CONFIGURATION_NAME);
-        for (String cfg : new String[]{JavaPlugin.COMPILE_CONFIGURATION_NAME, JavaPlugin.IMPLEMENTATION_CONFIGURATION_NAME}) {
-            Configuration c = project.getConfigurations().findByName(cfg);
-            if (c != null)
-                c.extendsFrom(minecraft);
-        }
+        project.getConfigurations().named(JavaPlugin.IMPLEMENTATION_CONFIGURATION_NAME).configure(t -> t.extendsFrom(minecraft));
 
         //Let gradle handle the downloading by giving it a configuration to dl. We'll focus on applying mappings to it.
         Configuration internalObfConfiguration = project.getConfigurations().maybeCreate(OBFUSCATED_CONFIGURATION_NAME);
