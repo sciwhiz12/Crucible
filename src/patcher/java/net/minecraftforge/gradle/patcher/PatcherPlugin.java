@@ -212,7 +212,7 @@ public class PatcherPlugin implements Plugin<Project> {
             task.getDependencies().from(jarConfig.flatMap(AbstractArchiveTask::getArchiveFile));
 
             // Only add main source, as we inject the patchedSrc into it as a sourceset.
-            task.getSources().from(mainSource.getJava());
+            task.getSources().from(mainSource.getJava().getSourceDirectories());
             task.getDependencies().from(javaCompile.map(JavaCompile::getClasspath));
         });
         createMcp2Srg.configure(task -> task.setReverse(true));

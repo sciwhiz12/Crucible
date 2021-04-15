@@ -30,6 +30,7 @@ import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.Dependency;
 import org.gradle.api.artifacts.DependencySet;
 import org.gradle.api.artifacts.ExternalModuleDependency;
+import org.gradle.api.file.FileCollection;
 import org.gradle.api.file.SourceDirectorySet;
 import org.gradle.api.logging.Logger;
 import org.gradle.api.plugins.BasePlugin;
@@ -174,7 +175,7 @@ public class UserDevPlugin implements Plugin<Project> {
             TaskProvider<JavaCompile> javaCompile = project.getTasks().named(JavaPlugin.COMPILE_JAVA_TASK_NAME, JavaCompile.class);
             JavaPluginConvention javaConv = (JavaPluginConvention) project.getConvention().getPlugins().get("java");
             NamedDomainObjectProvider<SourceSet> mainSource = javaConv.getSourceSets().named(SourceSet.MAIN_SOURCE_SET_NAME);
-            Provider<SourceDirectorySet> srcDirs = mainSource.map(SourceSet::getJava);
+            Provider<FileCollection> srcDirs = mainSource.map(SourceSet::getJava).map(SourceDirectorySet::getSourceDirectories);
 
             TaskProvider<DownloadMCPMappings> dlMappingsNew = project.getTasks().register(DOWNLOAD_NEW_MAPPINGS_TASK_NAME, DownloadMCPMappings.class);
             TaskProvider<ExtractRangeMap> extractRangeConfig = project.getTasks().register(EXTRACT_RANGE_MAP_TASK_NAME, ExtractRangeMap.class);
