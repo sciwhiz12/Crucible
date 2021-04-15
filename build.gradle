@@ -105,7 +105,7 @@ publishing {
             name 'projectLocal'
             url 'file://' + rootProject.file('repo').getAbsolutePath()
         }
-        def remoteURL = project.findProperty("remoteURL") ?: 'file://test'
+        def remoteURL = project.findProperty("remoteURL")
         if (remoteURL != null) {
             maven {
                 name 'remote'
