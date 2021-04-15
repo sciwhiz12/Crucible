@@ -141,8 +141,6 @@ public class PatcherPlugin implements Plugin<Project> {
         TaskProvider<JavaCompile> javaCompile = project.getTasks().named(JavaPlugin.COMPILE_JAVA_TASK_NAME, JavaCompile.class);
         SourceSet mainSource = javaConv.getSourceSets().getByName(SourceSet.MAIN_SOURCE_SET_NAME);
 
-        mainSource.java(v -> v.srcDir(extension.getPatchedSrc()));
-
         TaskProvider<DownloadMCPMappings> dlMappingsConfig = project.getTasks().register(DOWNLOAD_MAPPINGS_TASK_NAME, DownloadMCPMappings.class);
         TaskProvider<DownloadMCMeta> dlMCMetaConfig = project.getTasks().register(DOWNLOAD_MC_META_TASK_NAME, DownloadMCMeta.class);
         TaskProvider<ExtractNatives> extractNatives = project.getTasks().register(EXTRACT_NATIVES_TASK_NAME, ExtractNatives.class);
@@ -330,6 +328,8 @@ public class PatcherPlugin implements Plugin<Project> {
         }
 
         project.afterEvaluate(p -> {
+            // Add the patched source as a source dir during afterEvaluate, to not be overwritten by buildscripts
+            mainSource.java(v -> v.srcDir(extension.getPatchedSrc()));
 
             if (doingUpdate) {
                 //Don't overwrite the patched code, re-setup the project.
