@@ -46,7 +46,7 @@ task sourcesJar(type: Jar) {
 repositories {
 	mavenLocal()
     jcenter()
-    maven { url = 'https://files.minecraftforge.net/maven' }
+    maven { url = 'https://maven.minecraftforge.net/' }
 	maven { url = 'https://repo.gradle.org/gradle/libs-releases-local/' }
 }
 
