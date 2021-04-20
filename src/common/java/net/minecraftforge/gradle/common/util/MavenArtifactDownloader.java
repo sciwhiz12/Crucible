@@ -22,7 +22,6 @@ package net.minecraftforge.gradle.common.util;
 
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.http.client.utils.URIBuilder;
 import org.apache.maven.artifact.versioning.ArtifactVersion;
 import org.apache.maven.artifact.versioning.DefaultArtifactVersion;
 import org.gradle.api.Project;
@@ -283,11 +282,7 @@ public class MavenArtifactDownloader {
     }
 
     private static File _downloadWithCache(Project project, URI maven, String path, boolean changing, boolean bypassLocal) throws IOException, URISyntaxException {
-        URL url = new URIBuilder(maven)
-            .setPath(maven.getPath() + '/' + path)
-            .build()
-            .normalize()
-            .toURL();
+        URL url = maven.resolve(path).normalize().toURL();
         File target = Utils.getCache(project, "maven_downloader", path);
         return Utils.downloadWithCache(url, target, changing, bypassLocal);
     }
