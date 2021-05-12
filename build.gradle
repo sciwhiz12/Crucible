@@ -16,7 +16,7 @@ sourceSets {
     userdev
 }
 
-java.toolchain.languageVersion = JavaLanguageVersion.of(8)
+java.toolchain.languageVersion = JavaLanguageVersion.of(16)
 
 configurations {
     all {
