@@ -100,6 +100,7 @@ public class UserDevPlugin implements Plugin<Project> {
     @Override
     public void apply(@Nonnull Project project) {
         project.getPlugins().apply(FGBasePlugin.class);
+        Utils.addRepoFilters(project);
 
         @SuppressWarnings("unused")
         final Logger logger = project.getLogger();
