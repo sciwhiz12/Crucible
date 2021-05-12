@@ -94,7 +94,8 @@ publishing {
             artifact sourcesJar
             groupId 'tk.sciwhiz12.gradle'
             artifactId 'crucible'
-            version = versionInfo["raw_version"] + (versionInfo["snapshot"] ? "-SNAPSHOT" : "")
+//            version = versionInfo["raw_version"] + (versionInfo["snapshot"] ? "-SNAPSHOT" : "")
+            version = "4.2.0-j16-poc-SNAPSHOT"
         }
     }
     repositories {
