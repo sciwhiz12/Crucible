@@ -61,7 +61,7 @@ dependencies {
     commonImplementation 'com.google.code.gson:gson:2.8.6'
     commonImplementation 'com.google.guava:guava:30.1-jre'
     commonImplementation 'de.siegmar:fastcsv:2.0.0'
-    commonImplementation 'net.minecraftforge:artifactural:2.0.3'
+    commonImplementation 'net.minecraftforge:artifactural:2.0.9-gradle7'
     commonImplementation 'org.apache.maven:maven-artifact:3.6.3'
     commonImplementation 'net.minecraftforge:srgutils:0.4.1'
     commonImplementation 'net.minecraftforge:DiffPatch:2.0.5:all'
